@@ -1,0 +1,16 @@
+# Byte-faithful import: the served docroot carries CRLF line endings. Do NOT add
+# text/eol attributes — they would rewrite the served bytes on the next deploy.
+# Binary types only, so git never treats them as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.onnx binary
+*.woff2 binary
+*.woff binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.zip binary
