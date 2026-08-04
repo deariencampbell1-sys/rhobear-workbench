@@ -1,0 +1,157 @@
+/* ════════════════════════════════════════════════════════════════════
+   RHOBEAR Hub — Crew screen
+   Namespace: .s-crew (everything below is scoped to [data-screen="crew"]).
+   Reuses shared atoms: .hub-card, .hub-btn-ghost, .hub-filter-pill,
+   .hub-filter-row, .chip, .page-head, .page-head__row, .mono.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* page-head right-side legend */
+.s-crew__legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* filter pill row sits below the head, above the grid */
+.s-crew__filters {
+  margin: 4px 0 22px;
+}
+
+/* 3 → 2 → 1 responsive grid */
+.s-crew__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 1100px) {
+  .s-crew__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .s-crew__grid { grid-template-columns: 1fr; }
+}
+
+/* card body — centered column */
+.s-crew__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 22px 18px 18px;
+  position: relative;
+  transition: transform 200ms var(--hub-ease), border-color 150ms var(--hub-ease),
+              box-shadow 150ms var(--hub-ease);
+}
+.s-crew__card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--hub-accent-glow);
+}
+/* standby cards sit slightly dimmer so the eye reads the off-state */
+.s-crew__card[data-status="standby"] {
+  opacity: 0.92;
+}
+
+/* 56px circular avatar, rokkitt initial, teal ring + accent glow */
+.s-crew__avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--hub-font-display);
+  font-weight: 900;
+  font-size: 1.25rem;
+  color: var(--hub-accent-bright);
+  background: radial-gradient(circle at 35% 30%,
+              rgba(0,229,204,0.18) 0%,
+              rgba(42,143,168,0.18) 55%,
+              rgba(10,15,20,0.6) 100%);
+  border: 2px solid var(--hub-accent);
+  box-shadow: 0 0 12px rgba(42,143,168,0.28),
+              inset 0 0 10px rgba(0,229,204,0.14);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+/* name — rokkitt */
+.s-crew__name {
+  font-family: var(--hub-font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.15;
+  color: var(--hub-text-primary);
+  margin-top: 4px;
+}
+
+/* role — muted, small */
+.s-crew__role {
+  font-family: var(--hub-font-body);
+  font-size: 0.78rem;
+  color: var(--hub-text-muted);
+  margin-top: -2px;
+}
+
+/* thin load bar */
+.s-crew__load {
+  width: 100%;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.s-crew__load-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.s-crew__load-cap {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hub-text-muted);
+}
+.s-crew__load-label {
+  font-size: 0.7rem;
+  color: var(--hub-accent);
+}
+.s-crew__load-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.07);
+  overflow: hidden;
+}
+.s-crew__load-bar {
+  height: 100%;
+  width: var(--load, 0%);
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--hub-accent) 0%, var(--hub-accent-bright) 100%);
+  box-shadow: 0 0 8px rgba(0,229,204,0.4);
+  transition: width 360ms var(--hub-ease);
+}
+
+/* footer row — mono runs count + ghost Brief button */
+.s-crew__footer {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hub-border);
+}
+.s-crew__runs {
+  font-size: 0.74rem;
+  color: var(--hub-text-secondary);
+}
+.s-crew__brief {
+  padding: 5px 14px;
+  font-size: 0.74rem;
+}
+
+/* filtered-out cards hidden via JS toggle */
+.s-crew__card.is-hidden { display: none !important; }

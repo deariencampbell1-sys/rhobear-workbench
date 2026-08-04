@@ -1,0 +1,429 @@
+/* ════════════════════════════════════════════════════════════════════
+   RHOBEAR Hub — Settings screen
+   Scoped under .s-settings. Reuses shared atoms (.hub-card, .hub-btn-*,
+   .chip, .page-head, .row, .between, .stack, .mono, .muted, .section-rule).
+   Accent teal #2A8FA8. Primary CTAs use bright mint --hub-accent-bright.
+   ════════════════════════════════════════════════════════════════════ */
+
+.s-settings__layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+/* ── LEFT: sub-nav ───────────────────────────────────────────────── */
+.s-settings__subnav {
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 0;
+}
+.s-settings__subnav-label {
+  display: block;
+  font-family: var(--hub-font-body);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hub-text-section);
+  padding: 6px 10px 8px;
+}
+.s-settings__subitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  font-family: var(--hub-font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--hub-text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 150ms var(--hub-ease), color 150ms var(--hub-ease),
+              border-color 150ms var(--hub-ease);
+  white-space: nowrap;
+}
+.s-settings__subitem svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  color: var(--hub-text-secondary);
+  transition: color 150ms var(--hub-ease), opacity 150ms var(--hub-ease);
+}
+.s-settings__subitem:hover {
+  background: var(--hub-accent-dim);
+  color: var(--hub-text-primary);
+}
+.s-settings__subitem:hover svg { color: var(--hub-accent); opacity: 1; }
+
+/* Active = 2px left teal border + accent-dim fill (mirrors main nav rule) */
+.s-settings__subitem.is-active {
+  background: var(--hub-accent-dim);
+  border-left-color: var(--hub-accent);
+  color: var(--hub-text-primary);
+  font-weight: 600;
+}
+.s-settings__subitem.is-active svg { color: var(--hub-accent); opacity: 1; }
+
+/* ── RIGHT: detail pane ──────────────────────────────────────────── */
+.s-settings__pane {
+  min-height: 540px;
+  display: flex;
+  flex-direction: column;
+}
+.s-settings__pane-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--hub-border);
+  margin-bottom: 22px;
+}
+.s-settings__pane-title {
+  font-family: var(--hub-font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  line-height: 1.1;
+}
+.s-settings__pane-sub { font-size: 0.86rem; margin-top: 4px; }
+.s-settings__pane-body { flex: 1; }
+
+/* sections fade in on swap */
+.s-settings__section { animation: s-settings-in 300ms var(--hub-ease) both; }
+@keyframes s-settings-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── IDENTITY ────────────────────────────────────────────────────── */
+.s-settings__avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 26px;
+}
+.s-settings__avatar {
+  width: 76px; height: 76px; border-radius: 50%;
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  font-family: var(--hub-font-display);
+  font-weight: 900;
+  font-size: 1.7rem;
+  letter-spacing: 0.04em;
+  color: #052029;
+  background: radial-gradient(circle at 32% 28%, #7fdffb 0%, var(--hub-accent-bright) 30%, var(--hub-accent) 70%, #0d3a45 100%);
+  border: 1px solid rgba(0,229,204,0.45);
+  box-shadow: 0 0 24px rgba(42,143,168,0.5), inset 0 0 10px rgba(255,255,255,0.35);
+}
+.s-settings__avatar-meta { display: flex; flex-direction: column; gap: 10px; }
+.s-settings__avatar-hint { font-size: 0.84rem; color: var(--hub-text-secondary); }
+
+.s-settings__grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.s-settings__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.s-settings__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--hub-text-secondary);
+  letter-spacing: 0.01em;
+}
+.s-settings__input,
+.s-settings__select {
+  background: rgba(10,15,20,0.45);
+  border: 1px solid var(--hub-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: var(--hub-font-body);
+  font-size: 0.88rem;
+  color: var(--hub-text-primary);
+  outline: none;
+  transition: border-color 150ms var(--hub-ease), box-shadow 150ms var(--hub-ease);
+  width: 100%;
+}
+.s-settings__input--mono { font-family: var(--hub-font-mono); }
+.s-settings__input:focus,
+.s-settings__select:focus {
+  border-color: var(--hub-accent);
+  box-shadow: var(--hub-accent-glow);
+}
+.s-settings__select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232A8FA8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  padding-right: 34px;
+  cursor: pointer;
+}
+.s-settings__select option {
+  background: var(--hub-surface);
+  color: var(--hub-text-primary);
+}
+
+.s-settings__footer {
+  margin-top: 4px;
+}
+
+/* ── PLAN ────────────────────────────────────────────────────────── */
+.s-settings__plan-card {
+  padding: 16px;
+  border: 1px solid var(--hub-border);
+  border-radius: 12px;
+  background: rgba(10,15,20,0.35);
+  margin-bottom: 22px;
+  gap: 14px;
+}
+.s-settings__plan-glyph {
+  width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--hub-accent-dim);
+  border: 1px solid rgba(42,143,168,0.4);
+  color: var(--hub-accent-bright);
+}
+.s-settings__plan-glyph svg { width: 22px; height: 22px; }
+.s-settings__plan-name {
+  font-family: var(--hub-font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.s-settings__plan-price { font-size: 0.82rem; color: var(--hub-text-secondary); }
+
+.s-settings__h3 {
+  font-family: var(--hub-font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 12px;
+  color: var(--hub-text-primary);
+}
+
+.s-settings__usage { gap: 14px; }
+.s-settings__usage-row { display: block; }
+.s-settings__bar {
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+  border: 1px solid var(--hub-border);
+}
+.s-settings__bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--hub-accent), var(--hub-accent-bright));
+  box-shadow: 0 0 12px rgba(0,229,204,0.4);
+  transition: width 400ms var(--hub-ease);
+}
+
+/* ── MODELS ──────────────────────────────────────────────────────── */
+.s-settings__model-rows { gap: 10px; }
+.s-settings__model-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--hub-border);
+  border-radius: 12px;
+  background: rgba(10,15,20,0.35);
+  cursor: pointer;
+  transition: border-color 150ms var(--hub-ease), background 150ms var(--hub-ease);
+}
+.s-settings__model-row:hover {
+  border-color: var(--hub-accent);
+  background: var(--hub-accent-dim);
+}
+.s-settings__radio {
+  position: relative;
+  display: inline-block;
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+}
+.s-settings__radio input {
+  position: absolute; inset: 0;
+  opacity: 0; cursor: pointer; margin: 0;
+}
+.s-settings__radio span {
+  display: block;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--hub-border-hover);
+  background: transparent;
+  transition: border-color 150ms var(--hub-ease), background 150ms var(--hub-ease);
+}
+.s-settings__radio input:checked + span {
+  border-color: var(--hub-accent-bright);
+  background: radial-gradient(circle at center, var(--hub-accent-bright) 0 5px, transparent 6px);
+  box-shadow: 0 0 10px rgba(0,229,204,0.4);
+}
+.s-settings__model-meta { display: flex; flex-direction: column; gap: 4px; }
+.s-settings__model-name {
+  font-family: var(--hub-font-mono);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--hub-text-primary);
+}
+.s-settings__model-ctx { font-size: 0.76rem; }
+.s-settings__model-cost {
+  font-size: 0.8rem;
+  color: var(--hub-text-secondary);
+  flex-shrink: 0;
+}
+
+/* ── TOGGLES (Crew defaults + Notifications) ─────────────────────── */
+.s-settings__toggle-row { gap: 16px; padding: 4px 0; }
+.s-settings__toggle {
+  position: relative;
+  width: 44px; height: 24px;
+  border-radius: 99px;
+  border: 1px solid var(--hub-border-hover);
+  background: rgba(255,255,255,0.06);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 200ms var(--hub-ease), border-color 200ms var(--hub-ease);
+}
+.s-settings__toggle span {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--hub-text-secondary);
+  transition: transform 200ms var(--hub-ease), background 200ms var(--hub-ease);
+}
+.s-settings__toggle.is-on {
+  border-color: var(--hub-accent-bright);
+  background: var(--hub-accent-dim);
+}
+.s-settings__toggle.is-on span {
+  transform: translateX(20px);
+  background: var(--hub-accent-bright);
+  box-shadow: 0 0 10px rgba(0,229,204,0.6);
+}
+
+/* ── API KEYS ────────────────────────────────────────────────────── */
+.s-settings__key-rows { gap: 10px; }
+.s-settings__key-row {
+  padding: 14px 16px;
+  border: 1px solid var(--hub-border);
+  border-radius: 12px;
+  background: rgba(10,15,20,0.35);
+  gap: 14px;
+}
+.s-settings__key-glyph {
+  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--hub-accent-dim);
+  border: 1px solid rgba(42,143,168,0.35);
+  color: var(--hub-accent);
+}
+.s-settings__key-glyph svg { width: 18px; height: 18px; }
+.s-settings__key-name { font-weight: 700; font-size: 0.9rem; }
+
+/* ── BILLING ─────────────────────────────────────────────────────── */
+.s-settings__pay {
+  padding: 14px 16px;
+  border: 1px solid var(--hub-border);
+  border-radius: 12px;
+  background: rgba(10,15,20,0.35);
+  gap: 14px;
+}
+.s-settings__card-chip {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--hub-accent-bright);
+  background: var(--hub-accent-dim);
+  border: 1px solid rgba(42,143,168,0.4);
+}
+.s-settings__invoices { gap: 8px; }
+.s-settings__invoice {
+  padding: 10px 14px;
+  border: 1px solid var(--hub-border);
+  border-radius: 10px;
+  background: rgba(10,15,20,0.25);
+  font-size: 0.82rem;
+}
+
+/* ═══ RESPONSIVE: stack on narrow ═════════════════════════════════ */
+@media (max-width: 920px) {
+  .s-settings__grid2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .s-settings__layout {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  /* sub-nav collapses to a horizontal pill row that wraps */
+  .s-settings__subnav {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px;
+  }
+  .s-settings__subnav-label { width: 100%; padding: 2px 4px 4px; }
+  .s-settings__subitem {
+    border-left: none;
+    border: 1px solid var(--hub-border);
+    border-radius: 99px;
+    padding: 7px 14px;
+    width: auto;
+  }
+  .s-settings__subitem.is-active {
+    border-color: var(--hub-accent-bright);
+    border-left-color: var(--hub-accent-bright);
+    background: var(--hub-accent-dim);
+  }
+}
+
+/* ── Plan ladder + credits (screens/billing.js) ─────────────────────
+   Reuses the card/chip atoms; adds only the grid and the two type sizes
+   the ladder needs. */
+.s-settings__plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.s-settings__plan-tile {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 14px;
+}
+.s-settings__plan-tile.is-current {
+  border-color: var(--hub-accent);
+  background: var(--hub-accent-dim);
+}
+.s-settings__plan-tile button { margin-top: auto; }
+.s-settings__tile-price {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--hub-text-primary);
+}
+.s-settings__tile-price .muted { font-size: 0.8rem; font-weight: 400; }
+
+.s-settings__credits { padding: 18px 18px 16px; }
+.s-settings__credit-balance {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--hub-accent-bright, var(--hub-accent));
+}

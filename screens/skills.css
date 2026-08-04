@@ -1,0 +1,99 @@
+/* ════════════════════════════════════════════════════════════════════
+   s-skills — Skills screen
+   Namespace: .s-skills (every selector scoped under it)
+   Reuses shared atoms: .hub-card, .hub-btn-primary/.ghost,
+   .hub-filter-pill/.hub-filter-row, .hub-empty (+ __glyph/__title/__body),
+   .chip, .page-head/__row. Bright-mint filled pill is the only NEW shape.
+   ════════════════════════════════════════════════════════════════════ */
+
+.s-skills .page-head__row { align-items: flex-end; }
+
+/* ── filter bar: pills left, count chip right ─────────────────────── */
+.s-skills__filterbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  margin: 18px 0 22px;
+}
+.s-skills__count { color: var(--hub-text-muted); }
+
+/* ── cards grid: responsive 3 → 2 → 1 ─────────────────────────────── */
+.s-skills__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 1100px) {
+  .s-skills__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .s-skills__grid { grid-template-columns: 1fr; }
+}
+
+/* ── individual skill card layout ─────────────────────────────────── */
+.s-skills__card {
+  display: flex; flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+
+.s-skills__head {
+  display: flex; align-items: flex-start; gap: 12px;
+}
+
+.s-skills__icon {
+  width: 40px; height: 40px; flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--hub-accent-dim);
+  border: 1px solid rgba(42,143,168,0.28);
+  display: grid; place-items: center;
+  color: var(--hub-accent);
+}
+.s-skills__icon svg { width: 20px; height: 20px; display: block; }
+
+.s-skills__meta { min-width: 0; flex: 1; }
+.s-skills__name {
+  font-family: var(--hub-font-display);
+  font-size: 1rem; font-weight: 700;
+  color: var(--hub-text-primary);
+  line-height: 1.2;
+}
+.s-skills__desc {
+  font-size: 0.8rem;
+  color: var(--hub-text-muted);
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.s-skills__foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 2px;
+}
+
+/* ── install toggle — base = .hub-btn-ghost; .is-added = filled mint pill ──
+   Specificity (.s-skills .s-skills__toggle.is-added = 0,2,0) outranks
+   .hub-btn-ghost (0,1,0); scoped selector also future-proofs ordering. */
+.s-skills .s-skills__toggle { padding: 7px 16px; font-size: 0.78rem; }
+.s-skills .s-skills__toggle.is-added {
+  background: var(--hub-accent-bright);
+  color: #052029;
+  border-color: var(--hub-accent-bright);
+  font-family: var(--hub-font-mono);
+  font-size: 0.74rem;
+}
+.s-skills .s-skills__toggle.is-added:hover {
+  background: var(--hub-accent-bright);
+  border-color: var(--hub-accent-bright);
+  box-shadow: 0 0 18px rgba(0,229,204,0.45);
+}
+
+/* ── empty-state card wrapper (below the grid) ────────────────────── */
+.s-skills__empty-wrap { margin-top: 22px; }
+.s-skills__empty-wrap .hub-empty { padding: 52px 32px; }
+
+/* Mobile tightening — match the shell's small-screen rhythm */
+@media (max-width: 820px) {
+  .s-skills__filterbar { margin: 14px 0 18px; }
+  .s-skills__empty-wrap .hub-empty { padding: 40px 20px; }
+}

@@ -1,0 +1,29 @@
+/* Memory screen — namespaced under .s-memory */
+.s-memory__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.s-memory__panel { display: flex; flex-direction: column; }
+.s-memory__editor {
+  width: 100%;
+  min-height: 320px;
+  resize: vertical;
+  background: rgba(10,15,20,0.45);
+  border: 1px solid var(--hub-border);
+  border-radius: 12px;
+  padding: 14px;
+  font-family: var(--hub-font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--hub-text-primary);
+  outline: none;
+  transition: border-color 150ms var(--hub-ease), box-shadow 150ms var(--hub-ease);
+}
+.s-memory__editor:focus { border-color: var(--hub-accent); box-shadow: var(--hub-accent-glow); }
+
+@media (max-width: 820px) {
+  .s-memory__grid { grid-template-columns: 1fr; }
+  .s-memory__editor { min-height: 240px; }
+}

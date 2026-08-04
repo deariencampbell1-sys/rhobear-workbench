@@ -1,0 +1,277 @@
+/* ══════════════════════════════════════════════════════════════════════
+   RHOBEAR Hub — WORK BENCH structural layout (WIRING).
+   Scope: .s-work__bench and its JS-injected children (tab strip, pages,
+   canvas, composer chip rows). This is STRUCTURE only — grid template,
+   display toggles, panel layout. It deliberately reuses the shared
+   --hub-* tokens so it inherits the design system; it does NOT define
+   palette, typography, glass or spacing values (the visual lane owns
+   those). The chat bubble / message / chat-head styles live in styles.css
+   and are reused as-is.
+   Loaded from index.html after screens/work.css.
+   ══════════════════════════════════════════════════════════════════════ */
+
+.s-work__bench {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* ── tab strip ─────────────────────────────────────────────────────── */
+.s-work__tabstrip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.s-work__tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  flex: 1 1 auto;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+.s-work__tab {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 14px;
+  border-radius: var(--hub-pill-radius, 99px);
+  border: 1px solid var(--hub-border);
+  background: var(--hub-glass-bg);
+  color: var(--hub-text-secondary);
+  font-family: var(--hub-font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 240px;
+  transition: border-color 150ms var(--hub-ease), color 150ms var(--hub-ease);
+}
+.s-work__tab:hover { border-color: var(--hub-accent); color: var(--hub-accent); }
+.s-work__tab.is-active {
+  border-color: var(--hub-accent);
+  color: var(--hub-accent-bright);
+  background: var(--hub-accent-dim);
+}
+.s-work__tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.s-work__tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.6;
+}
+.s-work__tab-close:hover { opacity: 1; background: rgba(255, 255, 255, 0.08); }
+.s-work__tab-new { flex: 0 0 auto; }
+
+/* ── pages: chat ‖ canvas ──────────────────────────────────────────── */
+.s-work__pages { position: relative; }
+.s-work__page {
+  display: none;
+  gap: 12px;
+  align-items: stretch;
+}
+.s-work__page.is-active {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+}
+.s-work__page > .s-work__chat {
+  margin-top: 0;            /* override the standalone-card top margin */
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.s-work__empty {
+  padding: 28px 20px;
+  text-align: center;
+}
+
+/* The bench composer stacks a tools row, the input row, and a meter row.
+   Scoped so we only adjust layout direction of the shared .s-work__composer
+   inside the bench — colours/bg/border stay from styles.css. */
+.s-work__bench .s-work__composer {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.s-work__composer-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.s-work__composer-inputrow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.s-work__composer-inputrow .s-work__composer-input { flex: 1 1 auto; }
+.s-work__composer-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.s-work__ctx-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.1em; }
+.s-work__ctx-meter {
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--hub-border);
+  overflow: hidden;
+}
+.s-work__ctx-meter > i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--hub-accent);
+  transition: width 240ms var(--hub-ease);
+}
+.s-work__composer-foot [data-ctx-num] { font-size: 0.7rem; }
+
+/* small functional chip buttons in the composer */
+.s-work__chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--hub-pill-radius, 99px);
+  border: 1px solid var(--hub-border);
+  background: transparent;
+  color: var(--hub-text-secondary);
+  font-family: var(--hub-font-body);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 150ms var(--hub-ease), color 150ms var(--hub-ease);
+}
+.s-work__chip-btn:hover { border-color: var(--hub-accent); color: var(--hub-accent); }
+.s-work__chip-btn svg { width: 14px; height: 14px; opacity: 0.85; }
+.s-work__chip-btn[data-action="attach"] { padding: 5px 8px; }
+
+/* ── canvas column ─────────────────────────────────────────────────── */
+.s-work__canvas {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 360px;
+  padding: 0;
+  overflow: hidden;
+}
+.s-work__canvas-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--hub-border);
+  padding: 0 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.s-work__canvas-tab {
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  background: transparent;
+  border: 0;
+  color: var(--hub-text-secondary);
+  cursor: pointer;
+  font-family: var(--hub-font-body);
+  font-size: 0.76rem;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+}
+.s-work__canvas-tab:hover { color: var(--hub-text-primary); }
+.s-work__canvas-tab.is-active {
+  color: var(--hub-accent-bright);
+  border-bottom-color: var(--hub-accent);
+}
+.s-work__canvas-panel {
+  display: none;
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 12px;
+  min-height: 0;
+}
+.s-work__canvas-panel.is-active { display: block; }
+
+/* preview iframe fills its panel */
+.s-work__canvas-panel[data-canvas="preview"] { padding: 0; }
+.s-work__preview {
+  width: 100%;
+  height: 50vh;
+  min-height: 320px;
+  border: 0;
+  display: block;
+  background: #fff;
+}
+
+/* diff */
+.s-work__diff-list { display: flex; flex-direction: column; gap: 8px; }
+.s-work__diff-empty { font-size: 0.82rem; line-height: 1.5; }
+.s-work__diff-hunk {
+  border: 1px solid var(--hub-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--hub-glass-bg-2, var(--hub-glass-bg));
+}
+.s-work__diff-tool { font-size: 0.76rem; color: var(--hub-accent-bright); }
+.s-work__diff-actions { display: flex; gap: 6px; margin-top: 6px; }
+.s-work__diff-btn { padding: 3px 10px; font-size: 0.72rem; }
+
+/* files */
+.s-work__files-head { margin-bottom: 8px; }
+.s-work__file-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border: 1px solid var(--hub-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--hub-text-primary);
+  cursor: pointer;
+  transition: border-color 150ms var(--hub-ease);
+}
+.s-work__file-row:hover { border-color: var(--hub-accent); }
+.s-work__file-path { font-size: 0.8rem; }
+.s-work__file-note { font-size: 0.7rem; }
+
+/* shell */
+.s-work__shell-status { font-size: 0.78rem; margin-bottom: 8px; color: var(--hub-text-secondary); }
+.s-work__shell-out {
+  flex: 1 1 auto;
+  min-height: 120px;
+  max-height: 40vh;
+  overflow: auto;
+  border: 1px solid var(--hub-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+}
+.s-work__shell-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--hub-border);
+  border-radius: 8px;
+  background: var(--hub-bg);
+  color: var(--hub-text-primary);
+  font-size: 0.8rem;
+}
+.s-work__shell-input:focus { outline: none; border-color: var(--hub-accent); }
+
+/* ── mobile: stack chat above canvas ───────────────────────────────── */
+@media (max-width: 980px) {
+  .s-work__page.is-active {
+    grid-template-columns: 1fr;
+  }
+  .s-work__canvas { min-height: 300px; }
+}

@@ -1,0 +1,235 @@
+/* ════════════════════════════════════════════════════════════════════
+   RHOBEAR Hub — NOTES screen
+   Two-column markdown editor blurred behind a sign-in gate.
+   All selectors scoped under `.s-notes`.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Stage — make it tall enough that the blurred editor reads as a real app */
+.s-notes__stage {
+  min-height: 70vh;
+  padding: 30px 20px;
+}
+
+/* Blurred editor frame — fills the stage so the glass behind the gate is full */
+.s-notes__stage .gate-stage__blur {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+/* Two-column glass shell — list on the left, editor on the right */
+.s-notes__app {
+  width: min(1080px, 96%);
+  height: 100%;
+  min-height: 560px;
+  padding: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+}
+
+/* ── LEFT: notes list ─────────────────────────────────────────────── */
+.s-notes__list {
+  border-right: 1px solid var(--hub-border);
+  background: rgba(10, 15, 20, 0.35);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.s-notes__list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 16px 12px;
+}
+.s-notes__list-title {
+  font-family: var(--hub-font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.s-notes__list-head .icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+
+.s-notes__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 14px 10px;
+  padding: 7px 11px;
+  border: 1px solid var(--hub-border);
+  border-radius: 10px;
+  background: rgba(10, 15, 20, 0.45);
+}
+.s-notes__search svg { width: 14px; height: 14px; color: var(--hub-text-muted); flex-shrink: 0; }
+.s-notes__search input {
+  background: none; border: none; outline: none;
+  font-size: 0.8rem; width: 100%; color: var(--hub-text-primary);
+}
+.s-notes__search input::placeholder { color: var(--hub-text-muted); }
+
+.s-notes__items {
+  list-style: none;
+  padding: 4px 8px 14px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.s-notes__item {
+  padding: 11px 12px;
+  border-radius: 10px;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  transition: background 150ms var(--hub-ease), border-color 150ms var(--hub-ease);
+}
+.s-notes__item:hover { background: rgba(255, 255, 255, 0.03); }
+.s-notes__item.is-selected {
+  background: var(--hub-accent-dim);
+  border-left-color: var(--hub-accent);
+}
+
+.s-notes__item-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.s-notes__item-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--hub-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.s-notes__item.is-selected .s-notes__item-title { color: var(--hub-accent-bright); }
+.s-notes__item-date {
+  font-family: var(--hub-font-mono);
+  font-size: 0.62rem;
+  color: var(--hub-text-muted);
+  flex-shrink: 0;
+}
+
+.s-notes__item-preview {
+  margin-top: 4px;
+  font-size: 0.74rem;
+  color: var(--hub-text-secondary);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── RIGHT: editor ────────────────────────────────────────────────── */
+.s-notes__editor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 22px 26px;
+  gap: 14px;
+}
+
+.s-notes__title-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--hub-font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--hub-text-primary);
+  padding: 4px 0 8px;
+  border-bottom: 1px solid var(--hub-border);
+  transition: border-color 150ms var(--hub-ease);
+}
+.s-notes__title-input:focus { border-bottom-color: var(--hub-accent); }
+
+.s-notes__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.s-notes__toolbar .icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-family: var(--hub-font-body);
+  font-size: 0.82rem;
+}
+.s-notes__toolbar .icon-btn strong { font-weight: 800; }
+.s-notes__toolbar .icon-btn em { font-style: italic; }
+.s-notes__toolbar-spacer { flex: 1; }
+
+.s-notes__body {
+  flex: 1;
+  min-height: 220px;
+  resize: none;
+  width: 100%;
+  background: rgba(10, 15, 20, 0.45);
+  border: 1px solid var(--hub-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-family: var(--hub-font-mono);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--hub-text-primary);
+  outline: none;
+  transition: border-color 150ms var(--hub-ease), box-shadow 150ms var(--hub-ease);
+}
+.s-notes__body:focus {
+  border-color: var(--hub-accent);
+  box-shadow: var(--hub-accent-glow);
+}
+.s-notes__body::placeholder { color: var(--hub-text-muted); }
+
+.s-notes__footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+.s-notes__count {
+  font-family: var(--hub-font-mono);
+  font-size: 0.72rem;
+  color: var(--hub-text-secondary);
+}
+.s-notes__autosave {
+  font-family: var(--hub-font-mono);
+  font-size: 0.68rem;
+  color: var(--hub-text-muted);
+}
+.s-notes__footer-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Sign-in gate (sits above the blur) ───────────────────────────── */
+.s-notes__gate { position: relative; z-index: 2; }
+
+/* Google "G" glyph in teal, sitting before the CTA label */
+.s-notes__google .s-notes__google-g {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Responsive: collapse the list column on narrow viewports ─────── */
+@media (max-width: 820px) {
+  .s-notes__app {
+    grid-template-columns: 1fr;
+    min-height: 480px;
+  }
+  .s-notes__list { display: none; }
+  .s-notes__editor { padding: 18px 16px; }
+}

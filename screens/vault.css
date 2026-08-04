@@ -1,0 +1,117 @@
+/* ════════════════════════════════════════════════════════════════════
+   Vault screen — scoped under .s-vault
+
+   Reuses the shared atoms (.hub-card, .hub-btn-*, .chip, .page-head,
+   .row, .mono, .muted) and the Notes two-column shell (.s-notes__app and
+   friends), because Vault and Notes are two views of one store and should
+   not look like two different products.
+
+   The secrets-row rules that used to live here (.s-vault__row, __keyicon,
+   __masked, __reveal, __delete …) went with the secrets markup — there was
+   never a secrets backend behind them.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* The HTML `hidden` attribute is only a UA rule (`display: none`), so ANY
+   class that sets `display` outranks it — .row on the storage strip and the
+   flex column on the connect form both did, which meant hiding them from JS
+   silently did nothing and the disconnected Vault showed a bucket chip and an
+   open credential form. Scoped to this screen's own controls. */
+[data-vault-strip][hidden],
+[data-vault-connect-form][hidden],
+[data-vault-cors][hidden],
+[data-vault-gate][hidden],
+[data-vault-noteswrap][hidden],
+[data-vault-graphwrap][hidden] { display: none !important; }
+
+.s-vault__add { flex-shrink: 0; }
+
+/* ── storage strip ─────────────────────────────────────────────────── */
+.s-vault__reassure { gap: 10px 12px; }
+.s-vault__lock {
+  display: inline-grid; place-items: center;
+  width: 28px; height: 28px; border-radius: 8px;
+  color: var(--hub-accent);
+  background: var(--hub-accent-dim);
+  border: 1px solid rgba(42,143,168,0.35);
+  flex-shrink: 0;
+}
+.s-vault__lock svg { width: 15px; height: 15px; }
+.s-vault__reassure-note { font-size: 0.78rem; letter-spacing: 0.01em; }
+
+/* ── the vault shell — same geometry as the Notes editor ───────────── */
+.s-vault__app { min-height: 560px; }
+
+/* ── not-connected gate ────────────────────────────────────────────── */
+.s-vault__gate { padding: 26px 22px; }
+
+/* ── connect form ──────────────────────────────────────────────────── */
+.s-vault__connect {
+  max-width: 560px;
+  margin: 18px auto 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--hub-border);
+}
+.s-vault__connect h3 {
+  font-family: var(--hub-font-display);
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+.s-vault__connect p { font-size: 0.8rem; line-height: 1.5; }
+.s-vault__connect label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: var(--hub-text-secondary);
+}
+.s-vault__connect input {
+  background: rgba(10, 15, 20, 0.45);
+  border: 1px solid var(--hub-border);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-family: var(--hub-font-mono);
+  font-size: 0.82rem;
+  color: var(--hub-text-primary);
+  outline: none;
+  transition: border-color 150ms var(--hub-ease), box-shadow 150ms var(--hub-ease);
+}
+.s-vault__connect input:focus {
+  border-color: var(--hub-accent);
+  box-shadow: var(--hub-accent-glow);
+}
+.s-vault__connect-note { margin-top: 4px; }
+.s-vault__connect pre,
+.s-vault__cors pre {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--hub-border);
+  border-radius: 10px;
+  background: rgba(10, 15, 20, 0.55);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--hub-text-secondary);
+  overflow-x: auto;
+  white-space: pre;
+}
+.s-vault__connect [data-vault-connect-status] {
+  font-size: 0.74rem;
+  color: var(--hub-text-secondary);
+}
+
+/* ── CORS help, shown only after a bucket refuses a browser upload ─── */
+.s-vault__cors {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 14px 16px;
+  border: 1px solid rgba(245, 158, 44, 0.35);
+  border-radius: 12px;
+  background: rgba(245, 158, 44, 0.07);
+}
+.s-vault__cors strong { font-size: 0.86rem; }
+.s-vault__cors p { font-size: 0.78rem; line-height: 1.5; }
+.s-vault__cors button { align-self: flex-start; }

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Whisper Test</title>
+<style>
+  body{margin:0;background:#0c0a1f;color:#eae7ff;font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:760px;margin:0 auto;padding:22px}
+  h1{font-size:19px} button{background:#7c3aed;color:#fff;border:0;border-radius:10px;padding:12px 18px;font:inherit;font-weight:700;cursor:pointer}
+  button.g{background:#1b1840;border:1px solid #2a2658;font-weight:500}
+  #log{white-space:pre-wrap;background:#100e28;border:1px solid #2a2658;border-radius:12px;padding:14px;margin-top:14px;font:12.5px/1.5 ui-monospace,Consolas,monospace;min-height:220px}
+  .ok{color:#34d399}.err{color:#fb7185}.warn{color:#f59e0b}
+  #res{font-size:17px;margin-top:12px;min-height:24px}
+</style><link rel="stylesheet" href="https://use.typekit.net/sbv5bcv.css"></head>
+<body><div class="wrap">
+  <h1>RHOBEAR · Whisper dictation test</h1>
+  <p style="color:#a49fd6">Tap <b>Record 3s</b>, say a sentence, and watch the log. It shows every step and the exact error if anything fails. Hit <b>Copy log</b> and send it to me.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button id="warm" class="g">1 · Pre-load Whisper</button>
+    <button id="rec">2 · Record 3s &amp; transcribe</button>
+    <button id="dictate">3 · Test REAL dictate (tap, talk, tap again)</button>
+    <button id="copy" class="g">Copy log</button>
+  </div>
+  <script src="whisper-stt.js?v=5"></script>
+  <div id="res"></div>
+  <div id="log"></div>
+</div>
+<script>
+(function(){
+  var logEl=document.getElementById('log'), resEl=document.getElementById('res');
+  function log(s,cls){ var t=new Date().toLocaleTimeString(); logEl.innerHTML+=('['+t+'] '+(cls?'<span class="'+cls+'">'+s+'</span>':s))+'\n'; logEl.scrollTop=logEl.scrollHeight; }
+  window.addEventListener('error',function(e){ log('window.onerror: '+(e.message||e)+' @ '+(e.filename||'')+':'+(e.lineno||''),'err'); });
+  window.addEventListener('unhandledrejection',function(e){ log('unhandledrejection: '+((e.reason&&(e.reason.stack||e.reason.message))||e.reason),'err'); });
+
+  log('secure context: '+window.isSecureContext+' | origin: '+location.origin);
+  log('mediaDevices: '+!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)+' | MediaRecorder: '+!!window.MediaRecorder+' | AudioContext: '+!!(window.AudioContext||window.webkitAudioContext));
+
+  var pipe=null;
+  async function ensure(){
+    if(pipe) return pipe;
+    log('importing transformers.js from jsdelivr…');
+    var mod;
+    try { mod = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'); }
+    catch(e){ log('IMPORT FAILED: '+(e.stack||e),'err'); throw e; }
+    log('imported ✓','ok'); mod.env.allowLocalModels=false;
+    log('loading whisper-base.en (first time downloads ~40MB)…');
+    pipe = await mod.pipeline('automatic-speech-recognition','Xenova/whisper-base.en',{ quantized:true,
+      progress_callback:function(p){ if(p.status==='progress'&&p.file) resEl.textContent='downloading '+p.file+' '+Math.round(p.progress)+'%'; }});
+    log('model ready ✓','ok'); resEl.textContent='';
+    return pipe;
+  }
+  document.getElementById('warm').onclick=function(){ ensure().catch(function(e){ log('warm error: '+(e.stack||e),'err'); }); };
+
+  async function toF32(blob){
+    var ab=await blob.arrayBuffer();
+    var AC=window.AudioContext||window.webkitAudioContext; var ac=new AC();
+    var dec=await ac.decodeAudioData(ab); ac.close();
+    log('decoded: '+dec.duration.toFixed(2)+'s @ '+dec.sampleRate+'Hz');
+    var off=new OfflineAudioContext(1,Math.ceil(dec.duration*16000),16000);
+    var s=off.createBufferSource(); s.buffer=dec; s.connect(off.destination); s.start(0);
+    var r=await off.startRendering(); return r.getChannelData(0);
+  }
+
+  document.getElementById('rec').onclick=async function(){
+    try{
+      log('requesting mic…');
+      var stream;
+      try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+      catch(e){ log('MIC DENIED/FAILED: '+e.name+' — '+e.message,'err'); resEl.textContent='mic blocked'; return; }
+      log('mic granted ✓','ok');
+      var rec=new MediaRecorder(stream), chunks=[];
+      log('recorder mime: '+rec.mimeType);
+      rec.ondataavailable=function(e){ if(e.data.size) chunks.push(e.data); };
+      rec.onstop=async function(){
+        stream.getTracks().forEach(function(t){t.stop();});
+        var blob=new Blob(chunks,{type:rec.mimeType||'audio/webm'});
+        log('recorded blob: '+Math.round(blob.size/1024)+'KB, type '+blob.type);
+        try{
+          var p=await ensure();
+          var audio=await toF32(blob);
+          log('samples: '+audio.length+' — transcribing…');
+          var t0=performance.now();
+          var out=await p(audio);
+          log('transcribed in '+Math.round(performance.now()-t0)+'ms ✓','ok');
+          resEl.innerHTML='<b class="ok">“'+(out.text||'(empty)').trim()+'”</b>';
+          log('RESULT: '+JSON.stringify(out.text),'ok');
+        }catch(e){ log('TRANSCRIBE ERROR: '+(e.stack||e),'err'); resEl.textContent='transcribe failed'; }
+      };
+      resEl.textContent='● recording 3s — speak now';
+      rec.start(); log('recording…');
+      setTimeout(function(){ try{rec.stop();}catch(e){} }, 3000);
+    }catch(e){ log('rec handler error: '+(e.stack||e),'err'); }
+  };
+  // Test the REAL module path (WhisperSTT.dictate — exactly what the Rho embed calls)
+  document.getElementById('dictate').onclick=function(){
+    if(!window.WhisperSTT){ log('WhisperSTT module not loaded','err'); return; }
+    log('WhisperSTT.dictate() — tap this button again (or just stop talking) to end. state='+WhisperSTT.state);
+    WhisperSTT.dictate({
+      onStatus:function(st){ log('  onStatus: '+st, st.indexOf('error')===0?'err':st.indexOf('mic')===0?'err':''); },
+      onText:function(t){ log('  onText -> '+JSON.stringify(t), t?'ok':'warn'); resEl.innerHTML=t?('<b class="ok">“'+t+'”</b>'):'<b class="warn">EMPTY — VAD cut it too short</b>'; }
+    });
+  };
+  document.getElementById('copy').onclick=function(){ navigator.clipboard.writeText(logEl.textContent).then(function(){ resEl.textContent='log copied ✓'; }); };
+})();
+</script></body></html>

@@ -1,0 +1,28 @@
+/* ════════════════════════════════════════════════════════════════════
+   RHOBEAR Hub — MCPs screen
+   Scoped under .s-mcps. Reuses shared atoms (.hub-card, .hub-btn-*,
+   .hub-filter-pill/-row, .hub-empty, .page-head); only adds spacing +
+   a couple of screen-specific classes.
+   Accent: teal #2A8FA8  ·  primary CTA: bright mint #00E5CC
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Filter strip — a little breathing room under the page head, and the
+   pills wrap gracefully on narrow viewports. */
+.s-mcps__filters {
+  margin: 4px 0 22px;
+}
+
+/* Empty-state card spans the content width and clears its own hover glow
+   so the constellation bear is the only thing glowing. */
+.s-mcps__empty-card {
+  padding: 8px;
+}
+
+/* Empty-state action row — gap between the primary CTA and ghost button,
+   wraps to stacked on small widths. */
+.s-mcps__empty-actions {
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 4px;
+}

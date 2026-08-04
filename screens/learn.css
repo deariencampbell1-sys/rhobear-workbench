@@ -1,0 +1,97 @@
+/* ════════════════════════════════════════════════════════════════════
+   RHOBEAR Hub — LEARN screen
+   Sign-in gate floating over a blurred grid of lesson cards.
+   Namespaced under .s-learn — does not touch shared atoms.
+   ════════════════════════════════════════════════════════════════════ */
+
+.s-learn__stage { min-height: 60vh; }
+
+/* The gate floats above the blur. Shared .gate-stage already grids+centers,
+   shared .gate-stage__blur already absolutes+blurs. We just lift the gate. */
+.s-learn .hub-gate { position: relative; z-index: 1; }
+
+/* ── Blurred lesson grid (3 → 2 → 1) ──────────────────────────────── */
+.s-learn__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  width: 100%;
+  padding: 8px;
+}
+@media (max-width: 980px) {
+  .s-learn__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .s-learn__grid { grid-template-columns: 1fr; }
+}
+
+/* ── Lesson card (frosted glass, even though it's blurred behind) ── */
+.s-learn__card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--hub-glass-bg);
+  border: 1px solid var(--hub-border);
+  border-radius: var(--hub-card-radius);
+}
+
+/* 16:9 thumbnail block, teal gradient + play glyph */
+.s-learn__thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 28% 28%, rgba(0,229,204,0.30), transparent 60%),
+    linear-gradient(135deg, #0d3a45 0%, var(--hub-accent) 100%);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.s-learn__play {
+  position: relative;
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  opacity: 0.85;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,0.35));
+}
+
+.s-learn__title {
+  font-family: var(--hub-font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--hub-text-primary);
+}
+
+.s-learn__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.s-learn__duration {
+  font-family: var(--hub-font-mono);
+  font-size: 0.74rem;
+  color: var(--hub-text-secondary);
+}
+.s-learn__pct {
+  font-family: var(--hub-font-mono);
+  font-size: 0.7rem;
+  color: var(--hub-text-muted);
+}
+
+/* Thin progress bar */
+.s-learn__progress {
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.s-learn__bar {
+  height: 100%;
+  background: var(--hub-accent-bright);
+  border-radius: 99px;
+  box-shadow: 0 0 8px rgba(0,229,204,0.5);
+  transition: width 200ms var(--hub-ease);
+}

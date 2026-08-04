@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RHOBEAR — library list style (mockup)</title>
+<!--
+  Single-page style mockup. Demonstrates the dense grouped-line list look
+  (derived from the AffiNE page-list pattern, in our own Starlight tokens) that
+  would replace the bulky card grids on Skills / Connectors / Lessons.
+  Self-contained: tokens inlined, vanilla JS, real MCP data + representative
+  skill/lesson samples. Not wired to any backend.
+-->
+<style>
+/* ── Starlight tokens (dark canonical, from css/tokens.css) ─────────────── */
+:root {
+  --bg0:#0a0e13; --bg1:#0f151c; --bg2:#151d26; --bg3:#1c2631;
+  --line:rgba(151,183,196,0.12); --line-strong:rgba(151,183,196,0.24);
+  --text:#e8eef2; --text-2:#9db0bb; --text-3:#5f7280;
+  --accent:#3bd6c3; --accent-press:#2fbfae; --accent-soft:rgba(59,214,195,0.13); --accent-ink:#06251f;
+  --amber:#f59e2c; --amber-soft:rgba(245,158,44,0.14);
+  --violet:#b794f4; --violet-soft:rgba(183,148,244,0.14);
+  --pink:#f472b6;
+  --warn:#e8a33d; --warn-soft:rgba(232,163,61,0.14);
+  --danger:#e06552; --danger-soft:rgba(224,101,82,0.13);
+  --ok:#53c98b; --ok-soft:rgba(83,201,139,0.13);
+  --sans:-apple-system,"SF Pro Text","Segoe UI Variable Text","Segoe UI",system-ui,"Helvetica Neue",sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;
+  --fs-micro:11px; --fs-ui:12.5px; --fs-body:13.5px; --fs-title:16px; --fs-page:19px;
+  --w-regular:400; --w-medium:500;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
+  --r:8px; --r-pill:999px;
+  --ease:cubic-bezier(0.2,0,0,1); --t-hover:120ms var(--ease);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;background:var(--bg0);color:var(--text);font-family:var(--sans);font-size:var(--fs-body);line-height:1.5;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:var(--r-pill);border:3px solid transparent;background-clip:content-box}
+a{color:var(--accent);text-decoration:none}
+
+/* ── Page shell (mirrors rb-view--pad) ──────────────────────────────────── */
+.page{max-width:920px;margin:0 auto;padding:var(--s6) var(--s6) var(--s7)}
+.pagetitle{font-size:var(--fs-page);font-weight:var(--w-medium);margin:0 0 4px}
+.pagesub{font-size:var(--fs-body);color:var(--text-2);margin:0 0 var(--s5)}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+.toolbar{display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s4);flex-wrap:wrap}
+.search{flex:1;min-width:240px;max-width:440px;display:flex;align-items:center;gap:var(--s2);background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:7px var(--s3);color:var(--text-3)}
+.search:focus-within{border-color:var(--accent);background:var(--bg1)}
+.search svg{flex:none}
+.search input{flex:1;background:transparent;border:0;outline:0;color:var(--text);font:inherit;font-size:var(--fs-body)}
+.search input::placeholder{color:var(--text-3)}
+.kbd{font-family:var(--mono);font-size:var(--fs-micro);color:var(--text-3);background:var(--bg3);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+
+.seg{display:inline-flex;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:2px;gap:2px}
+.seg button{appearance:none;border:0;background:transparent;color:var(--text-2);font:inherit;font-size:var(--fs-ui);padding:5px 10px;border-radius:6px;cursor:pointer;transition:background var(--t-hover),color var(--t-hover)}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--bg3);color:var(--text)}
+
+.tog{display:inline-flex;align-items:center;gap:var(--s2);color:var(--text-2);font-size:var(--fs-ui)}
+.tog label{cursor:pointer}
+
+/* ── Tabs (the three surfaces) ───────────────────────────────────────────── */
+.tabs{display:flex;gap:var(--s1);border-bottom:1px solid var(--line);margin-bottom:var(--s2)}
+.tab{appearance:none;border:0;background:transparent;color:var(--text-2);font:inherit;font-size:var(--fs-body);padding:var(--s2) var(--s3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color var(--t-hover)}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--text);border-bottom-color:var(--accent)}
+.tab b{font-weight:var(--w-medium)}
+.tab i{font-style:normal;font-size:var(--fs-micro);color:var(--text-3);margin-left:6px}
+.tab.on i{color:var(--text-2)}
+
+/* ── Group header (28px, collapsible) ────────────────────────────────────── */
+.group{margin-bottom:var(--s2)}
+.group__head{display:flex;align-items:center;gap:var(--s2);height:32px;padding:0 var(--s2);user-select:none;border-radius:6px;transition:background var(--t-hover)}
+.group__head:hover{background:var(--bg2)}
+.chev{width:16px;height:16px;display:flex;align-items:center;justify-content:center;color:var(--text-3);transition:transform var(--t-hover)}
+.group.collapsed .chev{transform:rotate(-90deg)}
+.group__label{font-size:var(--fs-ui);font-weight:var(--w-medium);color:var(--text-2);letter-spacing:0.02em}
+.group__count{font-size:var(--fs-micro);color:var(--text-3)}
+.group__accent{width:6px;height:6px;border-radius:50%;flex:none}
+.group__body{overflow:hidden}
+.group.collapsed .group__body{display:none}
+
+/* ── Row (dense, ~44px comfortable / 34px compact) ───────────────────────── */
+.row{display:flex;align-items:center;gap:var(--s3);padding:0 var(--s3);border-bottom:1px solid var(--line);transition:background var(--t-hover);cursor:default;contain:strict}
+.row[data-density="comfort"]{height:46px}
+.row[data-density="compact"]{height:34px}
+.row:hover{background:var(--bg2)}
+.row:last-child{border-bottom:0}
+.row__icon{flex:none;width:22px;height:22px;display:flex;align-items:center;justify-content:center;color:var(--text-3);border-radius:6px;background:var(--bg2)}
+.row:hover .row__icon{background:var(--bg3)}
+.row.rhobear .row__icon{color:var(--accent);background:var(--accent-soft)}
+.row__bar{flex:none;width:2px;height:22px;border-radius:2px;background:transparent}
+.row.rhobear .row__bar{background:var(--accent)}
+.row__main{flex:1;min-width:0;display:flex;flex-direction:column;gap:0;justify-content:center}
+.row[data-density="compact"] .row__main{flex-direction:row;align-items:center;gap:var(--s2)}
+.row__title{font-size:var(--fs-body);font-weight:var(--w-medium);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row__sub{font-size:var(--fs-ui);color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row[data-density="compact"] .row__sub{flex:none;max-width:38%}
+.row__tags{display:flex;gap:4px;flex:none;align-items:center}
+.tag{font-size:var(--fs-micro);color:var(--text-2);background:var(--bg3);border-radius:4px;padding:1px 6px;white-space:nowrap}
+.tag.accent{color:var(--accent);background:var(--accent-soft)}
+.tag.amber{color:var(--amber);background:var(--amber-soft)}
+.tag.violet{color:var(--violet);background:var(--violet-soft)}
+.tag.ok{color:var(--ok);background:var(--ok-soft)}
+.row__meta{flex:none;font-size:var(--fs-micro);color:var(--text-3);text-align:right;min-width:64px;display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.row__actions{flex:none;display:flex;align-items:center;gap:var(--s1);opacity:0;transition:opacity var(--t-hover)}
+.row:hover .row__actions{opacity:1}
+.iconbtn{width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:var(--text-3);background:transparent;border:0;border-radius:6px;cursor:pointer;transition:background var(--t-hover),color var(--t-hover)}
+.iconbtn:hover{background:var(--bg3);color:var(--text)}
+.toggle{width:30px;height:18px;border-radius:var(--r-pill);background:var(--bg3);position:relative;cursor:pointer;transition:background var(--t-hover);border:0}
+.toggle.on{background:var(--accent)}
+.toggle::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--text);transition:transform var(--t-hover)}
+.toggle.on::after{transform:translateX(12px);background:var(--accent-ink)}
+
+.empty{padding:var(--s6);text-align:center;color:var(--text-3);font-size:var(--fs-body)}
+
+/* ── Inline edit affordance (rename) ─────────────────────────────────────── */
+.row.editing .row__title{outline:1px solid var(--accent);border-radius:4px;padding:0 4px}
+.muted{color:var(--text-3)}
+
+.foot{margin-top:var(--s6);padding-top:var(--s4);border-top:1px solid var(--line);color:var(--text-3);font-size:var(--fs-ui);display:flex;gap:var(--s4);flex-wrap:wrap}
+.foot b{color:var(--text-2);font-weight:var(--w-medium)}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="pagetitle">Library</h1>
+  <p class="pagesub">One clean list style across Skills, Connectors, and Lessons — dense rows, grouped, inline-editable. Search narrows; groups collapse.</p>
+
+  <!-- toolbar -->
+  <div class="toolbar">
+    <div class="search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="q" placeholder="Search the library — name, tag, vendor…" />
+      <span class="kbd">/</span>
+    </div>
+    <div class="seg" id="groupby" title="Group by">
+      <button data-g="category" class="on">Category</button>
+      <button data-g="source">Source</button>
+      <button data-g="none">None</button>
+    </div>
+    <div class="seg" id="sortby" title="Sort">
+      <button data-s="az" class="on">A–Z</button>
+      <button data-s="tier">Tier</button>
+    </div>
+    <div class="tog">
+      <input type="checkbox" id="compact" /><label for="compact">Compact</label>
+    </div>
+  </div>
+
+  <!-- tabs -->
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-t="connectors"><b>Connectors</b><i id="c-connectors">23</i></button>
+    <button class="tab" data-t="skills"><b>Skills</b><i id="c-skills">12</i></button>
+    <button class="tab" data-t="lessons"><b>Lessons</b><i id="c-lessons">8</i></button>
+  </div>
+
+  <div id="list"></div>
+
+  <div class="foot">
+    <span><b>Density:</b> comfort 46px / compact 34px (cards were ~150px)</span>
+    <span><b>Group header:</b> 32px, collapse on click</span>
+    <span><b>Editability:</b> hover row → toggle + ⋯ menu; double-click title to rename</span>
+    <span><b>Tokens:</b> Starlight (our own) — not copied</span>
+  </div>
+</div>
+
+<script>
+// ── Sample data (real MCPs from /mcp/catalog; representative skills + lessons) ──
+const DATA = {
+  connectors: [
+    {name:"RHOBEAR App Engine", sub:"Settings, MCP proxy, agent routing", icon:"⚙", source:"RHOBEAR", cat:"RHOBEAR", meta:"sse", tags:["rhobear","fleet"], rhobear:true},
+    {name:"CodeGraph", sub:"Symbol / dependency / route index", icon:"⌬", source:"RHOBEAR", cat:"RHOBEAR", meta:"sse", tags:["rhobear","code"], rhobear:true},
+    {name:"RHOBEAR Supervisor", sub:"Wave / phase control — kick, audit, status", icon:"◆", source:"RHOBEAR", cat:"RHOBEAR", meta:"sse", tags:["rhobear","swarm"], rhobear:true},
+    {name:"Swarm Dispatch", sub:"Dispatch + nudge endpoints", icon:"✦", source:"RHOBEAR", cat:"RHOBEAR", meta:"sse", tags:["rhobear","swarm"], rhobear:true},
+    {name:"RHOBEAR VPS", sub:"Hetzner utilities — file sync", icon:"▣", source:"RHOBEAR", cat:"RHOBEAR", meta:"sse", tags:["rhobear","infra"], rhobear:true},
+    {name:"Build Keeper", sub:"Build VM lifecycle — start, fire, deallocate", icon:"⊙", source:"RHOBEAR", cat:"RHOBEAR", meta:"sse", tags:["rhobear","build"], rhobear:true},
+    {name:"RHOBEAR Filesystem", sub:"~/Documents scoped file access", icon:"▤", source:"RHOBEAR", cat:"RHOBEAR", meta:"stdio", tags:["rhobear","files"], rhobear:true},
+    {name:"GitHub", sub:"Repos, issues, PRs, Actions", icon:"⌥", source:"modelcontextprotocol", cat:"developer", meta:"stdio", tags:["github","git"]},
+    {name:"Git", sub:"Repo state — log, diff, status, branches, blame", icon:"⎇", source:"modelcontextprotocol", cat:"developer", meta:"stdio", tags:["git","read"]},
+    {name:"Linear", sub:"Issues, projects, cycles", icon:"▹", source:"linear", cat:"productivity", meta:"stdio", tags:["linear","issues"]},
+    {name:"Slack", sub:"Channels, DMs, post + react", icon:"#", source:"modelcontextprotocol", cat:"messaging", meta:"stdio", tags:["slack","chat"]},
+    {name:"Telegram", sub:"Read + post via bot token", icon:"✈", source:"community", cat:"messaging", meta:"stdio", tags:["telegram"]},
+    {name:"Notion", sub:"Pages, databases, comments", icon:"▤", source:"mcp-london", cat:"docs", meta:"stdio", tags:["notion","wiki"]},
+    {name:"Google Drive", sub:"Files + folders, read/write", icon:"▽", source:"modelcontextprotocol", cat:"docs", meta:"stdio", tags:["google","drive"]},
+    {name:"PostgreSQL", sub:"Query via libpq connection string", icon:"🗄", source:"modelcontextprotocol", cat:"data", meta:"stdio", tags:["postgres","sql"]},
+    {name:"SQLite", sub:"Local .db files via SQL", icon:"🗄", source:"modelcontextprotocol", cat:"data", meta:"stdio", tags:["sqlite","local"]},
+    {name:"Stripe", sub:"Customers, charges, subscriptions, payouts", icon:"¢", source:"stripe", cat:"finance", meta:"stdio", tags:["stripe","payments"]},
+    {name:"Brave Search", sub:"Web search via Brave API", icon:"⌕", source:"brave", cat:"search", meta:"stdio", tags:["search","web"]},
+    {name:"Web Fetch", sub:"URL → readable Markdown", icon:"⤓", source:"modelcontextprotocol", cat:"search", meta:"stdio", tags:["http","fetch"]},
+    {name:"Puppeteer", sub:"Headless browser — navigate, click, screenshot", icon:"◉", source:"modelcontextprotocol", cat:"automation", meta:"stdio", tags:["browser"]},
+    {name:"Memory", sub:"Knowledge graph — entities, relations", icon:"◈", source:"modelcontextprotocol", cat:"productivity", meta:"stdio", tags:["memory"]},
+    {name:"Filesystem", sub:"Reference FS server — read/write/search", icon:"▤", source:"modelcontextprotocol", cat:"productivity", meta:"stdio", tags:["files","local"]},
+    {name:"Figma", sub:"Read files — frames, components, styles", icon:"✦", source:"community", cat:"design", meta:"stdio", tags:["figma","design"]},
+  ],
+  skills: [
+    {name:"goal_set", sub:"Plant a goal for the crew to chase", source:"core", cat:"Planning", meta:"min: free", tags:["core","goal"], rhobear:true},
+    {name:"vault_add", sub:"Commit a memory with consent", source:"core", cat:"Memory", meta:"min: free", tags:["core","vault"], rhobear:true},
+    {name:"search_docs", sub:"Full-text search across a workspace", source:"plans", cat:"Docs", meta:"min: starter", tags:["plans","search"], rhobear:true},
+    {name:"capture_start", sub:"Begin a SunSponge site capture", source:"sunsponge", cat:"Capture", meta:"min: pro", tags:["capture"], rhobear:true},
+    {name:"pr_review", sub:"Review a pull request for merge-readiness", source:"reviews", cat:"Code", meta:"min: pro", tags:["reviews","git"], rhobear:true},
+    {name:"verify_manifest", sub:"Node manifest verification + GitHub App", source:"verifier", cat:"Code", meta:"min: business", tags:["verify"], rhobear:true},
+    {name:"design_draft", sub:"Draft a Canva-style design (BYO-LLM)", source:"designs", cat:"Creative", meta:"min: business", tags:["design"], rhobear:true},
+    {name:"email_send", sub:"Send email via board-render", source:"plans", cat:"Comms", meta:"min: starter", tags:["plans","email"], rhobear:true},
+    {name:"calendar_events", sub:"List + create calendar events", source:"plans", cat:"Comms", meta:"min: starter", tags:["plans","cal"], rhobear:true},
+    {name:"doc_create", sub:"Spin up a new doc in a workspace", source:"plans", cat:"Docs", meta:"min: starter", tags:["plans","doc"], rhobear:true},
+    {name:"sticky_note", sub:"Drop a sticky on the board (socket.io)", source:"plans", cat:"Docs", meta:"min: starter", tags:["plans","board"], rhobear:true},
+    {name:"worker_send", sub:"Dispatch a task to a fleet worker", source:"core", cat:"Planning", meta:"min: pro", tags:["core","swarm"], rhobear:true},
+  ],
+  lessons: [
+    {name:"Builder-first MCP server", sub:"Wire one FastMCP server, smoke-test it green", source:"rhobear-cast", cat:"Foundations", meta:"12 min", tags:["mcp","build"]},
+    {name:"The area_verb naming law", sub:"Why vault_add beats addVaultToMemory", source:"rhobear-cast", cat:"Foundations", meta:"8 min", tags:["naming"]},
+    {name:"Hold the dot green", sub:"What the connection dot is really telling you", source:"rhobear-cast", cat:"Workbench", meta:"6 min", tags:["workbench"]},
+    {name:"Drive a goal end-to-end", sub:"goal → compass → crew → evidence", source:"rhobear-cast", cat:"Crew", meta:"18 min", tags:["crew","goal"]},
+    {name:"Consent before memory", sub:"The vault never remembers silently", source:"rhobear-cast", cat:"Memory", meta:"7 min", tags:["vault"]},
+    {name:"Tier-gated skills", sub:"How minTier filters what the crew can run", source:"rhobear-cast", cat:"Workbench", meta:"9 min", tags:["workbench","tier"]},
+    {name:"Quarantine by default", sub:"Ingest → incoming → promotion is earned", source:"rhobear-cast", cat:"Skills", meta:"11 min", tags:["skills"]},
+    {name:"One sanctioned catalog writer", sub:"Why SKILL.md stays matcher-parseable", source:"rhobear-cast", cat:"Skills", meta:"10 min", tags:["skills"]},
+  ],
+};
+
+const TIER_ORDER = {free:0, "min: free":0, "min: starter":1, starter:1, "min: pro":2, pro:2, "min: business":3, business:3};
+const CAT_ORDER = ["RHOBEAR","Foundations","Planning","Memory","Docs","Code","Creative","Comms","Capture","Crew","Workbench","Skills","developer","productivity","messaging","data","finance","search","automation","design"];
+
+let state = {tab:"connectors", q:"", group:"category", sort:"az", density:"comfort"};
+const $ = (s,el=document)=>el.querySelector(s);
+const list = $("#list");
+
+function catTagClass(cat){
+  if (cat==="RHOBEAR") return "accent";
+  if (cat==="developer"||cat==="Code") return "violet";
+  if (cat==="finance") return "amber";
+  if (cat==="design"||cat==="Creative") return "amber";
+  if (cat==="automation"||cat==="Capture") return "violet";
+  return "";
+}
+
+function render(){
+  const items = DATA[state.tab].filter(it=>{
+    if(!state.q) return true;
+    const n = state.q.toLowerCase();
+    const hay = (it.name+" "+it.sub+" "+it.source+" "+(it.tags||[]).join(" ")).toLowerCase();
+    return hay.includes(n);
+  });
+  // sort
+  items.sort((a,b)=>{
+    if(state.sort==="tier"){
+      return (TIER_ORDER[a.meta]??9)-(TIER_ORDER[b.meta]??9) || a.name.localeCompare(b.name);
+    }
+    return a.name.localeCompare(b.name);
+  });
+  // count badge
+  $("#c-"+state.tab).textContent = items.length;
+  if(items.length===0){ list.innerHTML = `<div class="empty">Nothing matches “${state.q}”.</div>`; return; }
+
+  // group
+  let groups;
+  if(state.group==="none"){
+    groups = [{label:null, items}];
+  } else {
+    const key = state.group;
+    const m = {};
+    items.forEach(it=>{ const k = key==="source" ? it.source : it.cat; (m[k]=m[k]||[]).push(it); });
+    groups = Object.keys(m).sort((a,b)=>{
+      if(a==="RHOBEAR") return -1; if(b==="RHOBEAR") return 1;
+      const ia=CAT_ORDER.indexOf(a), ib=CAT_ORDER.indexOf(b);
+      return (ia===-1?99:ia)-(ib===-1?99:ib) || a.localeCompare(b);
+    }).map(k=>({label:k, items:m[k]}));
+  }
+
+  list.innerHTML = groups.map(g=>{
+    const head = g.label==null ? "" : `
+      <div class="group__head" onclick="this.parentElement.classList.toggle('collapsed')">
+        <span class="chev"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></span>
+        ${g.label==="RHOBEAR"?'<span class="group__accent" style="background:var(--accent)"></span>':''}
+        <span class="group__label">${g.label}</span>
+        <span class="group__count">${g.items.length}</span>
+      </div>`;
+    const rows = g.items.map(it=>{
+      const catPill = state.tab==="connectors"
+        ? `<span class="tag ${catTagClass(it.cat)}">${it.cat}</span>` : "";
+      const srcPill = `<span class="tag">${it.source}</span>`;
+      return `
+        <div class="row ${it.rhobear?'rhobear':''}" data-density="${state.density}" ondblclick="this.classList.toggle('editing')">
+          <span class="row__bar"></span>
+          <span class="row__icon">${it.icon||"◇"}</span>
+          <div class="row__main">
+            <span class="row__title">${it.name}</span>
+            <span class="row__sub">${it.sub||""}</span>
+          </div>
+          <div class="row__tags">${catPill}${srcPill}</div>
+          <div class="row__meta"><span>${it.meta||""}</span></div>
+          <div class="row__actions">
+            <button class="toggle on" title="Enabled" onclick="this.classList.toggle('on')"></button>
+            <button class="iconbtn" title="More" onclick="alert('⋯ menu — configure, rename, remove (placeholder)')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+            </button>
+          </div>
+        </div>`;
+    }).join("");
+    return `<div class="group">${head}<div class="group__body">${rows}</div></div>`;
+  }).join("");
+}
+
+// wire controls
+$("#q").addEventListener("input", e=>{ state.q=e.target.value.trim(); render(); });
+document.addEventListener("keydown", e=>{ if(e.key==="/" && document.activeElement.tagName!=="INPUT"){ e.preventDefault(); $("#q").focus(); } });
+$("#groupby").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b)return; state.group=b.dataset.g; [...e.currentTarget.children].forEach(x=>x.classList.toggle("on", x===b)); render(); });
+$("#sortby").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b)return; state.sort=b.dataset.s; [...e.currentTarget.children].forEach(x=>x.classList.toggle("on", x===b)); render(); });
+$("#compact").addEventListener("change", e=>{ state.density = e.target.checked ? "compact" : "comfort"; render(); });
+$("#tabs").addEventListener("click", e=>{ const b=e.target.closest(".tab"); if(!b)return; state.tab=b.dataset.t; [...e.currentTarget.children].forEach(x=>x.classList.toggle("on", x===b)); render(); });
+
+render();
+</script>
+</body>
+</html>

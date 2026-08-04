@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RHOBEAR · STT Bench</title>
+<style>
+  :root{--bg:#0c0a1f;--panel:#141230;--panel2:#1b1840;--line:#2a2658;--line2:#39336e;
+    --ink:#eae7ff;--dim:#a49fd6;--dim2:#7d77ad;--accent:#7c3aed;--accent2:#22d3ee;
+    --ok:#34d399;--warn:#f59e0b;--err:#fb7185;--gold:#fbbf24;}
+  *{box-sizing:border-box} html,body{margin:0;height:100%}
+  body{background:radial-gradient(1100px 640px at 75% -12%,#241a52 0%,var(--bg) 55%);color:var(--ink);font:14px/1.5 -apple-system,Segoe UI,Roboto,system-ui,sans-serif}
+  a{color:var(--accent2);text-decoration:none}
+  .wrap{max-width:1200px;margin:0 auto;padding:16px 16px 70px}
+  header{display:flex;align-items:center;gap:11px;margin-bottom:12px}
+  .logo{width:32px;height:32px;border-radius:10px;background:conic-gradient(from 210deg,#7c3aed,#22d3ee,#ec4899,#7c3aed);box-shadow:0 0 20px #7c3aed88;flex:0 0 auto}
+  h1{font-size:18px;margin:0;font-weight:700} .sub{color:var(--dim);font-size:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+  label{display:block;font-size:11px;color:var(--dim);margin:0 0 5px;text-transform:uppercase;letter-spacing:.5px}
+  input,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:9px 10px;font:inherit;outline:none}
+  input:focus,textarea:focus{border-color:var(--accent)}
+  button{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:9px 15px;font:inherit;font-weight:600;cursor:pointer}
+  button.ghost{background:var(--panel2);border:1px solid var(--line);color:var(--ink);font-weight:500}
+  button.sm{padding:6px 10px;font-size:12px} button:disabled{opacity:.5;cursor:default}
+  button.rec{background:var(--err)} button.rec.on{background:#b91c3c;animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.6}}
+  .flex{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  .muted{color:var(--dim);font-size:12px} .mono{font-variant-numeric:tabular-nums}
+  .prov{border:1px solid var(--line);border-radius:11px;padding:10px;margin-bottom:9px;background:#100e28}
+  .prov h3{margin:0 0 3px;font-size:14px;display:flex;align-items:center;gap:8px}
+  .prov .models{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0}
+  .mchip{display:inline-flex;align-items:center;gap:5px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--dim);cursor:pointer;user-select:none}
+  .mchip.on{border-color:var(--accent);color:var(--ink);background:#2a1f57}
+  .tag{font-size:9.5px;padding:1px 6px;border-radius:999px;border:1px solid var(--line2);color:var(--dim2)}
+  .tag.fast{color:var(--accent2);border-color:#22d3ee55}.tag.cheap{color:var(--ok);border-color:#34d39955}
+  .keyin{display:flex;gap:6px;align-items:center;margin-top:4px}
+  .keyin input{flex:1;font-size:12px;padding:6px 9px}
+  .res{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+  .res.win{border-color:var(--gold)}
+  .res .rh{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .res .rh b{font-size:14px}.res .rh .rid{color:var(--dim2);font-size:11px}
+  .res .tx{white-space:pre-wrap;word-break:break-word;font-size:14px;border-top:1px solid var(--line);padding-top:8px}
+  .metrics{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .met{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:4px 9px;font-size:12px}
+  .met b{font-weight:600}.met .k{color:var(--dim2)}.met.best{border-color:var(--gold);color:var(--gold)}.met.best b{color:var(--gold)}
+  .errline{color:var(--err);font-size:12.5px}
+  .foot{color:var(--dim2);font-size:11.5px;text-align:center;margin-top:20px}
+  #wavebox{height:40px;background:#0b0920;border:1px solid var(--line);border-radius:9px;margin-top:8px;display:flex;align-items:center;justify-content:center;color:var(--dim2);font-size:12px}
+</style>
+<link rel="stylesheet" href="https://use.typekit.net/sbv5bcv.css"></head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"></div>
+    <div><h1>STT Bench <span class="tag">dev</span></h1>
+      <div class="sub">Record once → race every speech-to-text model on latency, cost, and accuracy. Hunt the one that beats Google.</div></div>
+  </header>
+
+  <!-- CAPTURE -->
+  <div class="card">
+    <label>1 · Capture audio</label>
+    <div class="flex">
+      <button class="rec" id="rec" type="button">● Record</button>
+      <button class="ghost sm" id="play" type="button" disabled>▶ Play</button>
+      <input id="file" type="file" accept="audio/*" style="display:none">
+      <button class="ghost sm" id="upload" type="button">⤴ Upload file</button>
+      <span class="muted mono" id="clipInfo">no clip yet</span>
+    </div>
+    <div id="wavebox">record a few seconds of speech, or upload a clip</div>
+    <audio id="audio" style="display:none"></audio>
+  </div>
+
+  <!-- REFERENCE -->
+  <div class="card">
+    <label>2 · Reference transcript (optional — enables accuracy / word-error-rate)</label>
+    <textarea id="ref" rows="2" placeholder="Type exactly what you said, and each model gets a WER score (lower = more accurate)."></textarea>
+  </div>
+
+  <!-- PROVIDERS -->
+  <div class="card">
+    <label>3 · Pick models + paste each provider's key</label>
+    <div id="providers"></div>
+    <div class="flex" style="margin-top:10px">
+      <span class="muted" id="pickCount">0 models selected</span>
+      <span style="flex:1"></span>
+      <button id="run" type="button">▶ Race them</button>
+    </div>
+    <div class="muted" id="runState" style="margin-top:7px"></div>
+  </div>
+
+  <div id="results"></div>
+  <div class="foot">RHOBEAR dev tool · audio → <code>workbench.rhobear.ai/stt-api</code> (server-side fan-out; keys pass through, never stored) · cost = provider rate × clip length (estimate).</div>
+</div>
+
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)};
+  var API="/stt-api/run";
+  var PROVIDERS=[
+    {id:"groq", name:"Groq", note:"latency king · free tier", key:"", models:[
+      {id:"whisper-large-v3-turbo", tags:["fast","cheap"]},
+      {id:"whisper-large-v3", tags:[]},
+      {id:"distil-whisper-large-v3-en", tags:["fast"]}]},
+    {id:"openai", name:"OpenAI", note:"", key:"", models:[
+      {id:"gpt-4o-mini-transcribe", tags:["cheap"]},
+      {id:"gpt-4o-transcribe", tags:[]},
+      {id:"whisper-1", tags:[]}]},
+    {id:"deepgram", name:"Deepgram", note:"$200 free credit", key:"", models:[
+      {id:"nova-3", tags:["fast"]},
+      {id:"nova-2", tags:["cheap"]}]},
+    {id:"fireworks", name:"Fireworks", note:"", key:"", models:[
+      {id:"whisper-v3-turbo", tags:["fast","cheap"]},
+      {id:"whisper-v3", tags:[]}]},
+    {id:"elevenlabs", name:"ElevenLabs", note:"Scribe · very accurate", key:"", models:[
+      {id:"scribe_v1", tags:[]}]}
+  ];
+  var selected={}; // "provider/model" -> true
+
+  // ---- providers UI ----
+  function renderProviders(){
+    var wrap=$("#providers"); wrap.innerHTML="";
+    PROVIDERS.forEach(function(p){
+      var savedKey=localStorage.getItem("stt.key."+p.id)||"";
+      var el=document.createElement("div"); el.className="prov";
+      var chips=p.models.map(function(m){
+        var kk=p.id+"/"+m.id, on=selected[kk];
+        var tg=m.tags.map(function(t){return '<span class="tag '+t+'">'+t+'</span>';}).join("");
+        return '<span class="mchip'+(on?' on':'')+'" data-k="'+kk+'">'+m.id+tg+'</span>';
+      }).join("");
+      el.innerHTML='<h3>'+p.name+' <span class="muted" style="font-weight:400">'+p.note+'</span></h3>'+
+        '<div class="models">'+chips+'</div>'+
+        '<div class="keyin"><input type="password" placeholder="'+p.name+' API key" value="'+savedKey.replace(/"/g,"&quot;")+'" data-key="'+p.id+'"><button class="ghost sm" data-save="'+p.id+'">save</button></div>';
+      wrap.appendChild(el);
+    });
+    [].forEach.call(wrap.querySelectorAll(".mchip"),function(c){
+      c.onclick=function(){var k=c.getAttribute("data-k"); if(selected[k])delete selected[k]; else selected[k]=true; c.classList.toggle("on"); count();};
+    });
+    [].forEach.call(wrap.querySelectorAll("[data-save]"),function(b){
+      b.onclick=function(){var id=b.getAttribute("data-save"); var inp=wrap.querySelector('[data-key="'+id+'"]'); localStorage.setItem("stt.key."+id, inp.value.trim()); b.textContent="saved ✓"; setTimeout(function(){b.textContent="save";},1200);};
+    });
+    count();
+  }
+  function count(){ $("#pickCount").textContent=Object.keys(selected).length+" models selected"; }
+  function keyFor(pid){ var inp=document.querySelector('[data-key="'+pid+'"]'); return (inp&&inp.value.trim())||localStorage.getItem("stt.key."+pid)||""; }
+
+  // ---- capture ----
+  var mediaRec=null, chunks=[], blob=null, dur=0, recStart=0, stream=null;
+  var recBtn=$("#rec"), audio=$("#audio");
+  recBtn.onclick=async function(){
+    if(mediaRec && mediaRec.state==="recording"){ mediaRec.stop(); return; }
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    }catch(e){ $("#wavebox").textContent="mic blocked: "+e.message; return; }
+    chunks=[]; mediaRec=new MediaRecorder(stream);
+    mediaRec.ondataavailable=function(e){ if(e.data.size)chunks.push(e.data); };
+    mediaRec.onstop=function(){
+      dur=(Date.now()-recStart)/1000;
+      blob=new Blob(chunks,{type: mediaRec.mimeType||"audio/webm"});
+      loadClip(blob, dur, "recording");
+      stream.getTracks().forEach(function(t){t.stop();});
+      recBtn.textContent="● Record"; recBtn.classList.remove("on");
+    };
+    recStart=Date.now(); mediaRec.start();
+    recBtn.textContent="■ Stop"; recBtn.classList.add("on");
+    $("#wavebox").textContent="● recording…";
+  };
+  $("#upload").onclick=function(){$("#file").click();};
+  $("#file").onchange=function(e){
+    var f=e.target.files&&e.target.files[0]; if(!f)return;
+    blob=f; var a=document.createElement("audio"); a.src=URL.createObjectURL(f);
+    a.onloadedmetadata=function(){ dur=isFinite(a.duration)?a.duration:0; loadClip(f,dur,f.name); };
+    a.onerror=function(){ dur=0; loadClip(f,0,f.name); };
+  };
+  function loadClip(b, d, name){
+    audio.src=URL.createObjectURL(b); $("#play").disabled=false;
+    $("#clipInfo").textContent=name+" · "+(d?d.toFixed(1)+"s":"?s")+" · "+Math.round(b.size/1024)+"KB";
+    $("#wavebox").textContent="✓ clip ready — pick models and race";
+  }
+  $("#play").onclick=function(){ if(audio.src){ audio.play(); } };
+
+  // ---- WER ----
+  function wer(ref, hyp){
+    var a=ref.toLowerCase().replace(/[^\w\s']/g," ").split(/\s+/).filter(Boolean);
+    var b=hyp.toLowerCase().replace(/[^\w\s']/g," ").split(/\s+/).filter(Boolean);
+    if(!a.length) return null;
+    var d=[]; for(var i=0;i<=a.length;i++){d[i]=[i];} for(var j=0;j<=b.length;j++){d[0][j]=j;}
+    for(i=1;i<=a.length;i++)for(j=1;j<=b.length;j++)
+      d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+    return d[a.length][b.length]/a.length;
+  }
+
+  // ---- run ----
+  $("#run").onclick=async function(){
+    var keys=Object.keys(selected);
+    if(!blob){ $("#runState").innerHTML='<span class="errline">Record or upload a clip first.</span>'; return; }
+    if(!keys.length){ $("#runState").innerHTML='<span class="errline">Pick at least one model.</span>'; return; }
+    var jobs=[], missing={};
+    keys.forEach(function(k){ var pid=k.split("/")[0], mdl=k.slice(pid.length+1), key=keyFor(pid);
+      if(!key){ missing[pid]=true; return; }
+      jobs.push({id:k, provider:pid, model:mdl, key:key}); });
+    if(Object.keys(missing).length){ $("#runState").innerHTML='<span class="errline">Missing key for: '+Object.keys(missing).join(", ")+'</span>'; }
+    if(!jobs.length) return;
+    var b64=await blobB64(blob);
+    var payload={audio_b64:b64, mime:blob.type||"audio/webm", filename:"clip."+((blob.type||"webm").split("/")[1]||"webm").split(";")[0], duration:dur, jobs:jobs.map(function(j){return {id:j.id,provider:j.provider,model:j.model,key:j.key};})};
+    $("#runState").textContent="racing "+jobs.length+" model(s)…"; $("#run").disabled=true;
+    var t0=performance.now();
+    try{
+      var r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      var d=await r.json();
+      if(!r.ok){ $("#runState").innerHTML='<span class="errline">'+(d.error||("HTTP "+r.status))+'</span>'; return; }
+      render(d.results||[], performance.now()-t0);
+      $("#runState").textContent="done in "+(((performance.now()-t0)/1000).toFixed(1))+"s";
+    }catch(e){ $("#runState").innerHTML='<span class="errline">'+(e.message||e)+'</span>'; }
+    finally{ $("#run").disabled=false; }
+  };
+  function blobB64(b){ return new Promise(function(res){ var r=new FileReader(); r.onload=function(){res(String(r.result).split(",")[1]);}; r.readAsDataURL(b); }); }
+
+  function render(results, wall){
+    var ref=$("#ref").value.trim();
+    results.forEach(function(x){ if(!x.error && ref!=null && ref!=="") x.wer=wer(ref, x.transcript||""); });
+    var ok=results.filter(function(x){return !x.error;});
+    var bestMs=Math.min.apply(null, ok.map(function(x){return x.ms||1e9;}).concat([1e9]));
+    var costs=ok.filter(function(x){return x.cost!=null;}).map(function(x){return x.cost;});
+    var bestCost=costs.length?Math.min.apply(null,costs):null;
+    var wers=ok.filter(function(x){return x.wer!=null;}).map(function(x){return x.wer;});
+    var bestWer=wers.length?Math.min.apply(null,wers):null;
+    var head=document.createElement("div"); head.className="muted"; head.textContent="▶ "+new Date().toLocaleTimeString()+" · "+results.length+" model(s) · wall "+(wall/1000).toFixed(1)+"s";
+    $("#results").insertBefore(head,$("#results").firstChild);
+    results.slice().reverse().forEach(function(x){
+      var el=document.createElement("div"); el.className="res";
+      var win=(!x.error && ((x.ms===bestMs)||(bestWer!=null&&x.wer===bestWer)));
+      if(win) el.className+=" win";
+      var mets="";
+      if(!x.error){
+        function met(k,v,best){return '<span class="met'+(best?" best":"")+'"><span class="k">'+k+'</span> <b>'+v+'</b></span>';}
+        mets+=met("latency", (x.ms||0)+"ms", x.ms===bestMs);
+        if(x.cost!=null) mets+=met("cost","$"+Number(x.cost).toFixed(5), bestCost!=null&&x.cost===bestCost);
+        if(x.words!=null) mets+=met("words", x.words);
+        if(x.wer!=null) mets+=met("WER", (x.wer*100).toFixed(1)+"%", bestWer!=null&&x.wer===bestWer);
+      }
+      el.innerHTML='<div class="rh"><b>'+x.provider+'</b> <span class="rid">'+x.model+'</span></div>'+
+        (x.error ? '<div class="errline">⚠ '+esc(x.error)+'</div>'
+                 : '<div class="tx">'+esc(x.transcript||"(empty)")+'</div><div class="metrics">'+mets+'</div>');
+      $("#results").insertBefore(el, head.nextSibling);
+    });
+  }
+  function esc(s){return String(s).replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+
+  renderProviders();
+  window.__RHOBEAR_STT_READY=true;
+})();
+</script>
+</body>
+</html>
