@@ -59,6 +59,21 @@ else
   echo "[deploy] WARNING: node not found, skipping the syntax gate" >&2
 fi
 
+# 0b. COMPANION CONFIG GATE. The Rho embed stays unconfigured (permanent
+#     "warming up" placeholder) unless every shipping callsite sets
+#     window.RHOBEAR_COMPANION BEFORE the embed script. The syntax gate above
+#     proves the scripts parse; this proves the config contract the live chat
+#     depends on (both pages, parsed endpoint, real send path) — a page that
+#     breaks the chat must not reach the docroot.
+if command -v node >/dev/null 2>&1; then
+  if ! node "$REPO/tests/companion-config.guard.js"; then
+    echo "[deploy] ABORTED — refusing to publish pages whose Rho companion is not configured." >&2
+    exit 1
+  fi
+else
+  echo "[deploy] WARNING: node not found, skipping the companion config gate" >&2
+fi
+
 # 1. Directories this repo fully owns. --delete is safe here: nothing else lives in them.
 for d in assets lessons mcp models preview screens vendor; do
   [ -d "$REPO/$d" ] || continue

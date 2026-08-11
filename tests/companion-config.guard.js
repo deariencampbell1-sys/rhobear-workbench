@@ -4,21 +4,28 @@
    --------------------------------------------------------------------------
    Regression coverage for the live defect where builds.rhobear.ai answered
    every turn with the permanent "warming up" placeholder:
-     - index.html loaded companion-embed-orb4.js but never set
+     - the shipping pages loaded companion-embed-orb4.js but never set
        window.RHOBEAR_COMPANION, so the embed ran unconfigured
        (ENDPOINT='' / READY=false) and its send path short-circuited to the
        warming text instead of calling the brain.
 
    What this file guards:
-     A. index.html declares a same-origin endpoint + ready BEFORE the embed
-        <script> tag (the embed reads the config at IIFE time, so the config
-        block must precede it).
-     B. The shipped embed, when configured, actually POSTs to
-        /companion/api/chat and streams the reply — and when unconfigured it
-        emits the warming fallback with zero network calls. Both directions
-        are asserted, so the check fails if the defect returns.
+     A. EVERY shipping callsite (index.html + screens/index.html) declares a
+        same-origin endpoint + ready BEFORE the embed <script> tag (the embed
+        reads the config at IIFE time, so the config block must precede it),
+        and both callsites declare the SAME endpoint — a drift between the two
+        pages fails loudly instead of slipping through green.
+     B. The shipped embed, when configured with the config PARSED OUT OF THE
+        ACTUAL HTML (not a hardcoded copy), POSTs to {endpoint}/api/chat and
+        streams the reply — and when unconfigured it emits the warming
+        fallback with zero network calls. Both directions are asserted, so
+        the check fails if the defect returns.
      C. Negative controls: each assertion is proven to FAIL when its guarded
-        property is removed (missing config / ready:false / embed unconfigured).
+        property is removed (missing config / ready:false / unconfigured
+        embed / endpoint drift between the two pages).
+
+   Timing: no fixed sleeps — every async outcome is polled at ~25ms up to a
+   5s deadline and fails on timeout, so slow machines/CI cannot flake.
 
    Run:  node tests/companion-config.guard.js
    Zero dependencies — plain Node, no test framework, mirrors deploy.sh's
@@ -31,8 +38,13 @@ const path = require('path');
 const vm = require('vm');
 
 const REPO = path.resolve(__dirname, '..');
-const INDEX = path.join(REPO, 'index.html');
+// Every shipping callsite that mounts the embed. Add a page here the moment
+// it loads companion-embed-orb4.js; the A/B checks below cover all of them.
+const FILES = ['index.html', 'screens/index.html'];
 const EMBED = path.join(REPO, 'companion-embed-orb4.js');
+
+const POLL_CADENCE_MS = 25;
+const POLL_DEADLINE_MS = 5000;
 
 let failures = 0;
 function check(name, fn) {
@@ -42,7 +54,25 @@ function check(name, fn) {
 function assert(cond, msg) { if (!cond) throw new Error(msg); }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/* ---- A: static contract on index.html ------------------------------------- */
+// Poll `fn` every POLL_CADENCE_MS up to POLL_DEADLINE_MS; return the first
+// truthy result, fail with a timeout + snapshot otherwise. `fn` may throw —
+// the last throw is reported if nothing becomes truthy.
+async function pollUntil(desc, fn, snapshot) {
+  const deadline = Date.now() + POLL_DEADLINE_MS;
+  let last = null;
+  for (;;) {
+    try { const v = fn(); if (v) return v; last = null; }
+    catch (e) { last = e; }
+    if (Date.now() >= deadline) {
+      const snap = snapshot ? snapshot() : '';
+      throw new Error('timed out after ' + POLL_DEADLINE_MS + 'ms waiting for ' + desc +
+        (last ? ' — last error: ' + last.message : '') + (snap ? ' — ' + snap : ''));
+    }
+    await sleep(POLL_CADENCE_MS);
+  }
+}
+
+/* ---- A: static contract on every shipping callsite ------------------------ */
 
 // Same regex family as deploy.sh's syntax gate: inline <script> blocks only
 // (any <script> carrying a src= attribute is skipped).
@@ -56,11 +86,14 @@ function extractInlineScripts(html) {
 
 function embedScriptIndex(html) {
   const m = /<script[^>]*\bsrc=["'][^"']*companion-embed-orb4\.js[^"']*["'][^>]*>/.exec(html);
-  assert(m, 'index.html must include companion-embed-orb4.js');
+  assert(m, 'page must include companion-embed-orb4.js');
   return m.index;
 }
 
-function assertConfigBeforeEmbed(html) {
+// VM-eval the page's window.RHOBEAR_COMPANION block and return the config —
+// the SAME config the browser would see, so the behavioral runs below can
+// exercise the real declared endpoint instead of a hardcoded copy.
+function parseConfig(html) {
   const blocks = extractInlineScripts(html).filter((b) => b.source.indexOf('window.RHOBEAR_COMPANION') !== -1);
   assert(blocks.length === 1,
     'expected exactly one window.RHOBEAR_COMPANION inline block, found ' + blocks.length);
@@ -75,14 +108,35 @@ function assertConfigBeforeEmbed(html) {
   assert(cfg.ready === true, 'ready must be true, got ' + JSON.stringify(cfg.ready));
   assert(blocks[0].index < embedScriptIndex(html),
     'config block must appear BEFORE the embed <script> tag');
+  return cfg;
+}
+
+function assertConfigsAgree(configs) {
+  const eps = Object.keys(configs).map((f) => configs[f].endpoint);
+  assert(eps.every((e) => e === eps[0]),
+    'all callsites must declare the SAME endpoint, got ' + JSON.stringify(eps));
 }
 
 /* ---- B: behavioral contract — the real embed, real send path --------------- */
 
-// Minimal DOM stub: enough surface for companion-embed-orb4.js to mount,
-// wire every control, and drive one send. The embed builds its whole tree
-// from a root innerHTML template, so the stub parses tags/ids/classes from
-// that template instead of hand-modeling the UI.
+// ---- minimal DOM stub -------------------------------------------------------
+// Supported surface (what the embed may rely on here):
+//   - Selectors: #id, .class, tag-name, one-level descendant chains
+//     (".rho-head-orb .rho-orbimg"), comma lists — the shapes the embed
+//     actually queries today.
+//   - Properties: id, className, value, title, type, accept, disabled,
+//     textContent (get/set), innerHTML (write-only; reads return ''),
+//     style (plain object + setProperty), classList, isConnected, children,
+//     firstChild/lastChild/nextSibling, parentNode.
+//   - Methods: appendChild, insertBefore, remove, contains, addEventListener,
+//     dispatchEvent (handlers get `this`, no Event object), querySelector/
+//     querySelectorAll, focus, select, getBoundingClientRect, animate,
+//     setAttribute/getAttribute.
+// NOT modeled: attribute selectors ([data-x]), :pseudo selectors, dataset,
+// computed styles, real Event objects, scrollIntoView, media elements.
+// When the embed grows a query the stub cannot answer, the guard must gain
+// that shape here or fall back to the browser-backed proof (the Chrome CDP
+// run in the PR) — the stub is a model, the browser is the truth.
 const VOID_TAGS = new Set(['img', 'br', 'input', 'link', 'path', 'circle', 'rect', 'line', 'polyline', 'polygon', 'use', 'meta']);
 
 function makeEl(tag) {
@@ -296,8 +350,9 @@ function makeContext(config) {
   return { ctx, fetchCalls };
 }
 
-// Mount the real embed, type a turn, hit send, and let the async chain land.
-async function runEmbed(embedSrc, config) {
+// Mount the real embed, type a turn, hit send. No sleeps here — the caller
+// polls fetchCalls / threadText to whatever outcome it is waiting for.
+function runEmbed(embedSrc, config) {
   const { ctx, fetchCalls } = makeContext(config);
   vm.runInNewContext(embedSrc, ctx, { timeout: 5000 });
   const input = ctx.document.getElementById('rho-input');
@@ -306,62 +361,94 @@ async function runEmbed(embedSrc, config) {
   input.value = 'ping the crew';
   input.dispatchEvent('input');          // refreshSend() enables the send button
   sendBtn.dispatchEvent('click');        // send()
-  // Warming fallback typewrites ~14ms/char; streamed reply lands in microtasks.
-  await sleep(config ? 120 : 900);
-  return { fetchCalls, threadText: ctx.document.getElementById('rho-thread').textContent };
+  return {
+    fetchCalls,
+    threadText: () => ctx.document.getElementById('rho-thread').textContent
+  };
 }
 
 /* ---- main ----------------------------------------------------------------- */
 
 async function main() {
-  console.log('guard: Builds Rho companion must be configured and hit /companion/api/chat\n');
+  console.log('guard: Builds Rho companion must be configured on EVERY callsite and hit {endpoint}/api/chat\n');
 
-  const html = fs.readFileSync(INDEX, 'utf8');
-  check('A1  index.html declares same-origin endpoint + ready BEFORE the embed script',
-    () => assertConfigBeforeEmbed(html));
+  const htmls = {};
+  const configs = {};
+  for (const f of FILES) {
+    const html = fs.readFileSync(path.join(REPO, f), 'utf8');
+    htmls[f] = html;
+    check('A1  ' + f + ' declares same-origin endpoint + ready BEFORE the embed script',
+      () => { configs[f] = parseConfig(html); });
+  }
 
-  check('A2  (negative) guard fails when the config block is missing',
+  for (const f of FILES) {
+    check('A2  (negative) guard fails for ' + f + ' when the config block is missing',
+      () => {
+        const stripped = htmls[f].replace(/<script>\s*window\.RHOBEAR_COMPANION[\s\S]*?<\/script>/, '');
+        let threw = false;
+        try { parseConfig(stripped); } catch (e) { threw = true; }
+        assert(threw, 'expected the guard to fail on missing config');
+      });
+
+    check('A3  (negative) guard fails for ' + f + ' when ready:false',
+      () => {
+        let threw = false;
+        try { parseConfig(htmls[f].replace('ready: true', 'ready: false')); } catch (e) { threw = true; }
+        assert(threw, 'expected the guard to fail on ready:false');
+      });
+  }
+
+  check('A4  all callsites declare the same endpoint (no drift between pages)',
+    () => assertConfigsAgree(configs));
+
+  check('A5  (negative) guard fails when one callsite drifts to a different endpoint',
     () => {
-      const stripped = html.replace(/<script>\s*window\.RHOBEAR_COMPANION[\s\S]*?<\/script>/, '');
+      // A wrong-but-same-origin path passes A1 for that page alone — only the
+      // cross-page agreement check makes the drift loud.
+      const drifted = htmls['screens/index.html'].replace('endpoint: "/companion"', 'endpoint: "/companion/v2"');
+      const driftedCfg = parseConfig(drifted);
       let threw = false;
-      try { assertConfigBeforeEmbed(stripped); } catch (e) { threw = true; }
-      assert(threw, 'expected the guard to fail on missing config');
-    });
-
-  check('A3  (negative) guard fails when ready:false',
-    () => {
-      let threw = false;
-      try { assertConfigBeforeEmbed(html.replace('ready: true', 'ready: false')); } catch (e) { threw = true; }
-      assert(threw, 'expected the guard to fail on ready:false');
+      try { assertConfigsAgree(Object.assign({}, configs, { 'screens/index.html': driftedCfg })); } catch (e) { threw = true; }
+      assert(threw, 'expected the guard to fail on endpoint drift');
     });
 
   const embedSrc = fs.readFileSync(EMBED, 'utf8');
+  const TYPED = 'ping the crew';
 
-  const warm = await runEmbed(embedSrc, null);
+  // B1 — negative control: an unconfigured embed must answer the warming
+  // placeholder (case-insensitive) and never touch the network.
+  const warm = runEmbed(embedSrc, null);
+  await pollUntil('the unconfigured embed to emit the warming placeholder',
+    () => warm.threadText().toLowerCase().indexOf('warming') !== -1,
+    () => 'thread: ' + JSON.stringify(warm.threadText().slice(0, 120)));
   check('B1  (negative) unconfigured embed answers the warming placeholder with zero network calls',
     () => {
-      assert(warm.threadText.indexOf('warming') !== -1,
-        'expected the warming text, got: ' + JSON.stringify(warm.threadText.slice(0, 100)));
       assert(warm.fetchCalls.length === 0,
         'expected zero network calls from the unconfigured embed, got ' + warm.fetchCalls.length);
     });
 
-  const cold = await runEmbed(embedSrc, { endpoint: '/companion', ready: true });
-  check('B2  configured embed POSTs /companion/api/chat and streams the reply (no warming text)',
-    () => {
-      assert(cold.fetchCalls.length === 1,
-        'expected exactly one network call, got ' + cold.fetchCalls.length);
-      const call = cold.fetchCalls[0];
-      assert(call.url === '/companion/api/chat',
-        'expected /companion/api/chat, got ' + JSON.stringify(call.url));
-      assert(call.opts.method === 'POST', 'expected POST, got ' + call.opts.method);
-      const payload = JSON.parse(call.opts.body);
-      assert(payload.text === 'ping the crew', 'expected the typed text in the payload');
-      assert(cold.threadText.indexOf('Hello from the guard-test brain') !== -1,
-        'expected the streamed reply in the thread, got: ' + JSON.stringify(cold.threadText.slice(0, 100)));
-      assert(cold.threadText.indexOf('warming') === -1,
-        'the warming placeholder must not appear when the embed is configured');
-    });
+  // B2 — for EVERY callsite, drive the embed with the config parsed out of
+  // that page's own HTML, then assert the chat POST lands on the parsed
+  // endpoint + /api/chat and the streamed reply renders (no warming text).
+  for (const f of FILES) {
+    const cfg = configs[f];
+    const cold = runEmbed(embedSrc, cfg);
+    await pollUntil(f + ' to POST ' + cfg.endpoint + '/api/chat and stream the reply',
+      () => cold.threadText().indexOf('Hello from the guard-test brain') !== -1,
+      () => 'calls: ' + JSON.stringify(cold.fetchCalls.map((c) => c.url)) + ' — thread: ' + JSON.stringify(cold.threadText().slice(0, 120)));
+    check('B2  ' + f + ' (parsed config ' + cfg.endpoint + ') POSTs {endpoint}/api/chat and streams the reply (no warming text)',
+      () => {
+        const chats = cold.fetchCalls.filter((c) => c.url === cfg.endpoint + '/api/chat' && c.opts && c.opts.method === 'POST');
+        assert(chats.length >= 1,
+          'expected at least one chat POST to ' + cfg.endpoint + '/api/chat, got ' +
+          JSON.stringify(cold.fetchCalls.map((c) => c.url + ' ' + (c.opts && c.opts.method))));
+        const payload = JSON.parse(chats[0].opts.body);
+        assert(payload.text === TYPED, 'expected the typed text in the payload, got ' + JSON.stringify(payload.text));
+        const lower = cold.threadText().toLowerCase();
+        assert(lower.indexOf('warming') === -1,
+          'the warming placeholder must not appear when the embed is configured');
+      });
+  }
 
   console.log('');
   if (failures) { console.error(failures + ' check(s) FAILED'); process.exit(1); }
