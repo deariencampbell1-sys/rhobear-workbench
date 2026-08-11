@@ -2345,6 +2345,18 @@
   <script defer src="/sheet-artifact.js?v=20260728-1447"></script>
   <script defer src="/rho-orb-live.js?v=20260728-1447"></script>
   <script defer src="/hub-strive.js?v=20260728-1447"></script>
+  <!-- Rho config BEFORE the embed script: the embed stays unconfigured (and
+       answers "warming up") unless it finds window.RHOBEAR_COMPANION set first.
+       Same-origin /companion per the companion server contract; no keys. -->
+  <script>
+    window.RHOBEAR_COMPANION = {
+      endpoint: "/companion",
+      ready: true,
+      accent: "#2A8FA8",
+      title: "Rho",
+      greeting: "Hey — I'm Rho. Ask me anything about your RHOBEAR."
+    };
+  </script>
   <script defer src="/companion-embed-orb4.js?v=20260728-1447"></script>
 
   <!-- Cutover: retire the OLD service worker so returning users get the NEW shell,
