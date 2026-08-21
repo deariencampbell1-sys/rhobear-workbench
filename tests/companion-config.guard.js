@@ -415,6 +415,20 @@ async function main() {
   const embedSrc = fs.readFileSync(EMBED, 'utf8');
   const TYPED = 'ping the crew';
 
+  check('C1  voice contract keeps dictation review-first and makes spoken follow-up explicit',
+    () => {
+      assert(embedSrc.includes('WhisperSTT.dictate({'),
+        'ordinary composer dictation must use WhisperSTT.dictate for record-review-send');
+      assert(embedSrc.includes('function startVoiceFollowTurn()'),
+        'the embed must expose a separate smart voice-follow-up turn');
+      assert(embedSrc.includes("mode: voiceReply ? 'voice' : 'text'"),
+        'voice follow-up turns must tell the brain they will be heard');
+      assert(embedSrc.includes("style: 'rho'"),
+        'TTS requests must carry the Rho delivery style separately from visible text');
+      assert(embedSrc.includes("voiceStop.addEventListener('click', exitVoiceFollow)"),
+        'the top-corner Stop control must return the user to normal dictation');
+    });
+
   // B1 — negative control: an unconfigured embed must answer the warming
   // placeholder (case-insensitive) and never touch the network.
   const warm = runEmbed(embedSrc, null);

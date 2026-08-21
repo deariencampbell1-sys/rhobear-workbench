@@ -1,8 +1,8 @@
 # Deploying RHOBEAR Workbench web — SOURCE OF TRUTH
 
-**This repo is the single source of truth for the static Workbench web app served at
-workbench.rhobear.ai.** The live docroot on `rhobear-vps` is `/var/www/rhobear-workbench-web`
-(served static by Caddy behind hermes-router auth). It is NOT a git repo.
+**This repo is the single source of truth for the static Builds web app served at
+builds.rhobear.ai.** `workbench.rhobear.ai` redirects here. The live docroot on `rhobear-vps` is
+`/var/www/rhobear-builds-web` (served static by Caddy). It is NOT a git repo.
 
 ## The rule
 - **Never hand-edit the docroot.** Hand edits silently drift and get reverted by the next
@@ -33,5 +33,5 @@ attributes to this repo — that would make the next deploy rewrite the served f
 break byte-identity with the server. `.gitattributes` marks binary types only.
 
 ## Backend (not managed here)
-Auth for workbench.rhobear.ai is `hermes-router` + Caddy (separate service and source). The
+Auth for builds.rhobear.ai is `hermes-router` + Caddy (separate service and source). The
 `status` file at the docroot root is a static status JSON, not service-written.

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# deploy.sh — deploy RHOBEAR Workbench web (static app) FROM this repo INTO the live docroot.
+# deploy.sh — deploy RHOBEAR Builds web (static app) FROM this repo INTO the live docroot.
 # Run ON rhobear-vps:  cd /home/slang/rhobear-workbench-web && git pull && ./deploy.sh
 #
-# THIS REPO IS THE SINGLE SOURCE OF TRUTH for workbench.rhobear.ai's static docroot.
-# NEVER hand-edit the docroot (/var/www/rhobear-workbench-web) — hand edits silently drift and
+# THIS REPO IS THE SINGLE SOURCE OF TRUTH for builds.rhobear.ai's static docroot.
+# NEVER hand-edit the docroot (/var/www/rhobear-builds-web) — hand edits silently drift and
 # get reverted, which is exactly the failure this arrangement exists to prevent. Edit here, commit,
 # deploy.
 #
@@ -23,7 +23,7 @@
 # CSS; "build" == this sync.
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOCROOT="${WORKBENCH_DOCROOT:-/var/www/rhobear-workbench-web}"
+DOCROOT="${BUILDS_DOCROOT:-/var/www/rhobear-builds-web}"
 [ -d "$DOCROOT" ] || { echo "[deploy] ERROR: docroot $DOCROOT not found" >&2; exit 1; }
 cd "$REPO"
 
@@ -104,4 +104,4 @@ node -e '
 ' "$REPO/index.html" "$STAMP" "$DOCROOT/.index.html.new"
 mv "$DOCROOT/.index.html.new" "$DOCROOT/index.html"
 
-echo "[deploy] done — workbench.rhobear.ai now serving ?v=$STAMP"
+echo "[deploy] done — builds.rhobear.ai now serving ?v=$STAMP"

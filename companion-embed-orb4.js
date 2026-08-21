@@ -625,6 +625,28 @@
   #rho-call-wave { height: 40px; gap: 3px; }
   #rho-call-wave i { width: 4px; }
 
+  /* Voice follow-up stays visible without turning ordinary chat into a call.
+     Stop always means "back to normal dictation" - no hidden sticky mode. */
+  #rho-voice-dock {
+    display: none; position: fixed; top: max(14px, env(safe-area-inset-top)); right: 16px;
+    z-index: 2147483003; align-items: center; gap: 8px; padding: 8px 10px 8px 13px;
+    border: 1px solid color-mix(in srgb, var(--rho-a) 55%, rgba(255,255,255,.16)); border-radius: 15px;
+    background: rgba(13,12,24,.92); box-shadow: 0 12px 34px rgba(0,0,0,.38);
+    color: #fff; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    font: 700 12px/1 var(--rho-font-body);
+  }
+  #rho-embed.rho-follow-on #rho-voice-dock { display: flex; }
+  #rho-voice-status { max-width: 160px; color: rgba(255,255,255,.86); }
+  .rho-voice-dock-btn {
+    width: 36px; height: 36px; padding: 0; border: 0; border-radius: 11px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; color: #fff;
+    background: linear-gradient(135deg, var(--rho-a3), var(--rho-a));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 3px 12px color-mix(in srgb, var(--rho-a) 35%, transparent);
+  }
+  .rho-voice-dock-btn:hover { filter: brightness(1.12); }
+  .rho-voice-dock-btn svg { width: 18px; height: 18px; }
+  #rho-voice-stop { background: rgba(255,255,255,.12); box-shadow: none; }
+
   /* Phones: the panel is a full-screen surface, not a floating window */
   @media (max-width: 520px) {
     #rho-panel { right: 0; bottom: 0; width: 100vw; height: 100vh; height: 100dvh; border-radius: 0; }
@@ -671,6 +693,8 @@
     copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
     speaker: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg>',
     stopspk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h3v14H7zm7 0h3v14h-3z"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m8 5 11 7-11 7z"/></svg>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
   };
   var ORB = '<span class="rho-orbimg" data-state="idle"></span>';
@@ -718,9 +742,14 @@
             '<button id="rho-send" aria-label="Send" disabled>' + ICON.send + '</button>' +
           '</div>' +
         '</div>' +
-        '<p class="rho-hint">' + (READY ? 'Enter to send · Shift+Enter for a new line · the waveform opens a live voice call' : TITLE + ' is being wired in \u2014 answers land here soon') + '</p>' +
+        '<p class="rho-hint">' + (READY ? 'Mic dictates. Listen beneath a reply turns on voice follow-up. The waveform opens a live call.' : TITLE + ' is being wired in \u2014 answers land here soon') + '</p>' +
       '</div>' +
     '</section>' +
+    '<div id="rho-voice-dock" role="group" aria-label="Voice replies are on">' +
+      '<span id="rho-voice-status">Voice replies on</span>' +
+      '<button class="rho-voice-dock-btn" id="rho-voice-pause" type="button" aria-label="Pause voice playback" title="Pause voice playback">' + ICON.pause + '</button>' +
+      '<button class="rho-voice-dock-btn" id="rho-voice-stop" type="button" aria-label="Stop voice replies and return to dictation" title="Stop voice replies">' + ICON.stopspk + '</button>' +
+    '</div>' +
     '<div id="rho-call-surface" role="dialog" aria-label="Voice call with ' + TITLE + '">' +
       '<button class="rho-hbtn" id="rho-call-exit" aria-label="End the call">' + ICON.close + '</button>' +
       '<button id="rho-call-orb" aria-label="Tap to interrupt">' + ORB + '</button>' +
@@ -766,6 +795,10 @@
     var expandBtn = root.querySelector('#rho-expand');
     var barWave = root.querySelector('#rho-bar-wave');
     var callWave = root.querySelector('#rho-call-wave');
+    var voiceDock = root.querySelector('#rho-voice-dock');
+    var voiceStatus = root.querySelector('#rho-voice-status');
+    var voicePause = root.querySelector('#rho-voice-pause');
+    var voiceStop = root.querySelector('#rho-voice-stop');
     var callExit= root.querySelector('#rho-call-exit');
     var callOrb = root.querySelector('#rho-call-orb');
     var callState = root.querySelector('#rho-call-state');
@@ -786,6 +819,7 @@
       settings.classList.remove('rho-on');
       plusMenu.classList.remove('rho-on');
       stopMsgSpeak();
+      exitVoiceFollow();
     }
 
     launch.addEventListener('click', open);
@@ -888,7 +922,7 @@
       if (!READY || !ENDPOINT) return;
       fetch(ENDPOINT + '/api/tts', {
         method: 'POST', headers: authHeaders(), credentials: 'include',
-        body: JSON.stringify({ text: 'Hey, this is ' + TITLE + ' \u2014 sounding like ' + v + '.', voice: v })
+        body: JSON.stringify({ text: 'Hey, this is ' + TITLE + ' \u2014 sounding like ' + v + '.', voice: v, style: 'rho' })
       }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) {
         if (!b) return;
         var a = new Audio(URL.createObjectURL(b));
@@ -1039,30 +1073,116 @@
     function waveStop(el) { if (!el) return; el.classList.remove('rho-on'); var k = waveTargets.indexOf(el); if (k >= 0) waveTargets.splice(k, 1); if (el.__bars) for (var i = 0; i < el.__bars.length; i++) el.__bars[i].style.height = '4px'; }
     function waveSetAmp(a) { waveAmp = Math.min(1, Math.max(0.06, a)); }
 
-    // ---- global speech-out: Copy + Listen on every agent message -----------
-    // (plan's "speech everywhere, both ways" standing rule). Listen streams the
-    // block through our TTS (POST /api/tts) — never a browser/Google voice.
-    var msgAudio = null, msgSpkBtn = null;
-    function stopMsgSpeak() {
-      if (msgAudio) { try { msgAudio.pause(); } catch (e) {} msgAudio = null; }
-      if (msgSpkBtn) { msgSpkBtn.classList.remove('rho-on'); msgSpkBtn.firstChild.innerHTML = ICON.speaker; msgSpkBtn = null; }
+    // ---- voice follow-up: Listen turns on a deliberate, reversible mode ---
+    // The visible response stays clean. The server receives the `rho` delivery
+    // style separately, so speech has Rho's cadence without stage directions
+    // leaking into the chat or getting read aloud as literal tags.
+    var voiceFollow = {
+      on: false, listening: false, queue: [], playing: false, audio: null,
+      pendingSentence: '', sourceBtn: null, turnActive: false
+    };
+    function setVoiceFollowStatus(text, paused) {
+      if (!voiceFollow.on) return;
+      voiceStatus.textContent = text || (voiceFollow.listening ? 'Listening for your next turn' : 'Voice replies on');
+      voicePause.innerHTML = paused ? ICON.play : ICON.pause;
+      voicePause.setAttribute('aria-label', paused ? 'Play voice playback' : 'Pause voice playback');
+      voicePause.title = paused ? 'Play voice playback' : 'Pause voice playback';
     }
-    function speakMsg(text, btn) {
-      if (msgSpkBtn === btn) { stopMsgSpeak(); return; }   // tap again = stop
-      stopMsgSpeak();
-      if (!READY || !ENDPOINT || !text) return;
-      msgSpkBtn = btn;
-      btn.classList.add('rho-on'); btn.firstChild.innerHTML = ICON.stopspk;
+    function clearVoiceFollowButton() {
+      if (!voiceFollow.sourceBtn) return;
+      voiceFollow.sourceBtn.classList.remove('rho-on');
+      if (voiceFollow.sourceBtn.firstChild) voiceFollow.sourceBtn.firstChild.innerHTML = ICON.speaker;
+      voiceFollow.sourceBtn = null;
+    }
+    function voiceFollowStopAudio() {
+      voiceFollow.queue = [];
+      voiceFollow.pendingSentence = '';
+      if (voiceFollow.audio) { try { voiceFollow.audio.pause(); } catch (e) {} voiceFollow.audio = null; }
+      voiceFollow.playing = false;
+      clearVoiceFollowButton();
+      if (voiceFollow.on) setVoiceFollowStatus(voiceFollow.listening ? 'Listening for your next turn' : 'Voice replies on', false);
+    }
+    function voiceFollowPump() {
+      if (!voiceFollow.on || voiceFollow.playing || !voiceFollow.queue.length) return;
+      voiceFollow.playing = true;
+      var sentence = voiceFollow.queue.shift();
+      setVoiceFollowStatus('Rho is speaking', false);
       fetch(ENDPOINT + '/api/tts', {
         method: 'POST', headers: authHeaders(), credentials: 'include',
-        body: JSON.stringify({ text: text, voice: VOICE })
-      }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) {
-        if (msgSpkBtn !== btn) return;                     // superseded
-        if (!b) { stopMsgSpeak(); return; }
-        var a = new Audio(URL.createObjectURL(b)); msgAudio = a;
-        a.onended = a.onerror = function () { if (msgSpkBtn === btn) stopMsgSpeak(); };
-        a.play().catch(function () { a.onended(); });
-      }).catch(function () { if (msgSpkBtn === btn) stopMsgSpeak(); });
+        body: JSON.stringify({ text: sentence, voice: VOICE, style: 'rho' })
+      }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (blob) {
+        if (!voiceFollow.on) return;
+        if (!blob) { voiceFollow.playing = false; voiceFollowPump(); return; }
+        var audio = new Audio(URL.createObjectURL(blob));
+        voiceFollow.audio = audio;
+        audio.onplay = function () { if (voiceFollow.audio === audio) setVoiceFollowStatus('Rho is speaking', false); };
+        audio.onpause = function () { if (voiceFollow.audio === audio && !audio.ended) setVoiceFollowStatus('Voice paused', true); };
+        audio.onended = audio.onerror = function () {
+          if (voiceFollow.audio !== audio) return;
+          voiceFollow.audio = null; voiceFollow.playing = false;
+          if (voiceFollow.queue.length) voiceFollowPump();
+          else setVoiceFollowStatus('Voice replies on', false);
+        };
+        audio.play().catch(function () {
+          if (voiceFollow.audio === audio) setVoiceFollowStatus('Ready to play', true);
+        });
+      }).catch(function () { voiceFollow.playing = false; voiceFollowPump(); });
+    }
+    function voiceFollowEnqueue(text) {
+      text = (text || '').trim();
+      if (!text || !voiceFollow.on) return;
+      voiceFollow.queue.push(text);
+      voiceFollowPump();
+    }
+    function voiceFollowAddDelta(delta) {
+      if (!voiceFollow.on) return;
+      voiceFollow.pendingSentence += delta || '';
+      var sentence;
+      while ((sentence = voiceFollow.pendingSentence.match(/^([\s\S]*?[.!?])(\s|$)/))) {
+        voiceFollowEnqueue(sentence[1]);
+        voiceFollow.pendingSentence = voiceFollow.pendingSentence.slice(sentence[0].length);
+      }
+    }
+    function voiceFollowFlush() {
+      if (voiceFollow.pendingSentence.trim()) voiceFollowEnqueue(voiceFollow.pendingSentence);
+      voiceFollow.pendingSentence = '';
+      voiceFollow.turnActive = false;
+    }
+    function startVoiceFollow(btn) {
+      if (!READY || !ENDPOINT) return false;
+      voiceFollow.on = true;
+      root.classList.add('rho-follow-on');
+      if (btn) {
+        clearVoiceFollowButton();
+        voiceFollow.sourceBtn = btn;
+        btn.classList.add('rho-on');
+        if (btn.firstChild) btn.firstChild.innerHTML = ICON.stopspk;
+      }
+      setVoiceFollowStatus('Voice replies on', false);
+      return true;
+    }
+    function exitVoiceFollow() {
+      if (!voiceFollow.on && !voiceFollow.listening) return;
+      voiceFollow.on = false;
+      voiceFollow.listening = false;
+      if (voiceFollow.turnActive) interrupt();
+      voiceFollow.turnActive = false;
+      voiceFollowStopAudio();
+      try { if (window.WhisperSTT) WhisperSTT.stop(); } catch (e) {}
+      dictate.classList.remove('rho-on');
+      waveStop(barWave);
+      input.setAttribute('placeholder', input.getAttribute('data-rho-ph') || 'Message Rho…');
+      root.classList.remove('rho-follow-on');
+    }
+    function stopMsgSpeak() { voiceFollowStopAudio(); }
+    function speakMsg(text, btn) {
+      if (voiceFollow.on && voiceFollow.sourceBtn === btn) { exitVoiceFollow(); return; }
+      if (!startVoiceFollow(btn) || !text) return;
+      voiceFollowStopAudio();
+      voiceFollow.sourceBtn = btn;
+      btn.classList.add('rho-on');
+      if (btn.firstChild) btn.firstChild.innerHTML = ICON.stopspk;
+      voiceFollowEnqueue(text);
     }
     function attachActions(node) {
       if (!node || node.__acted) return; node.__acted = 1;
@@ -1141,6 +1261,10 @@
     async function send() {
       var text = input.value.trim();
       if (!text) return;
+      // Capture this turn's mode once. A Stop tap during the request clears the
+      // audio queue and aborts the request; it must not make a later SSE delta
+      // unexpectedly start speaking again.
+      var voiceReply = voiceFollow.on;
       stopMsgSpeak();
       if (READY && ENDPOINT && auth.checked && auth.required && !auth.signedIn) {
         // keep their words in the box \u2014 sign in, then hit send again
@@ -1165,12 +1289,21 @@
       sendBtn.disabled = true;
       setBusy(true);
       setOrb('thinking');
+      if (voiceReply) {
+        voiceFollow.turnActive = true;
+        voiceFollow.pendingSentence = '';
+        setVoiceFollowStatus('Rho is thinking', false);
+      }
       try {
         await askBrain(text, {
           image: pendingImage || undefined,
           thinking: thinking,
-          mode: 'text',
-          onDelta: function (_d, full) { if (!node.__spoke) { node.__spoke = 1; setOrb('speaking'); } setText(node, full); },
+          mode: voiceReply ? 'voice' : 'text',
+          onDelta: function (d, full) {
+            if (!node.__spoke) { node.__spoke = 1; setOrb('speaking'); }
+            setText(node, full);
+            if (voiceReply && voiceFollow.on) voiceFollowAddDelta(d);
+          },
           onTool: function (name) { crewChip('t:' + name, name); },
           onToolDone: function () {},
           onAgent: function (id, kind, task) { crewChip('a:' + id, kind, task); },
@@ -1182,11 +1315,17 @@
         node.classList.remove('is-streaming');
         crewAllDone();
         setOrb('idle');
-        if (!node.textContent) setText(node, "…I didn't catch a reply that time. Try me again?");
+        if (!node.textContent) {
+          var fallbackReply = "…I didn't catch a reply that time. Try me again?";
+          setText(node, fallbackReply);
+          if (voiceReply && voiceFollow.on) voiceFollowEnqueue(fallbackReply);
+        }
+        if (voiceReply && voiceFollow.on) voiceFollowFlush();
         attachActions(node);
       } catch (err) {
         node.classList.remove('is-streaming');
         crewAllDone();
+        if (voiceReply) voiceFollow.turnActive = false;
         if (err && err.rho === 'signin') {
           node.remove();
           setOrb('idle');
@@ -1308,7 +1447,7 @@
     var WHISPER_JS = (function () {
       var q = '/whisper-stt.js?v=' + WHISPER_VER;
       try { var o = new URL(document.currentScript && document.currentScript.src || '').origin; if (o && o !== 'null') return o + q; } catch (e) {}
-      return 'https://workbench.rhobear.ai' + q;
+      return 'https://builds.rhobear.ai' + q;
     })();
     function ensureWhisper(cb) {
       if (window.WhisperSTT) return cb();
@@ -1319,36 +1458,99 @@
       s.onerror = function () { dictate.style.display = 'none'; };
       document.head.appendChild(s);
     }
-    dictate.addEventListener('click', function () {
-      // Hands-free CONTINUOUS dictation: tap on → it listens, auto-detects the
-      // silence, types each utterance, keeps listening → tap the mic to stop.
-      if (dictate.classList.contains('rho-on')) {
-        try { window.WhisperSTT && WhisperSTT.stopTalk && WhisperSTT.stopTalk(); } catch (e) {}
-        dictate.classList.remove('rho-on');
-        waveStop(barWave);
-        input.setAttribute('placeholder', input.getAttribute('data-rho-ph') || 'Message Rho…');
-        return;
-      }
+    // Plain dictation is intentionally boring: tap to record, tap again to
+    // finish, review the words, then send when ready. Voice follow-up changes
+    // only after a person explicitly presses Listen beneath an answer.
+    var plainDictating = false;
+    function composerPlaceholder() { return input.getAttribute('data-rho-ph') || 'Message Rho…'; }
+    function resetComposerDictation() {
+      plainDictating = false;
+      dictate.classList.remove('rho-on');
+      waveStop(barWave);
+      input.setAttribute('placeholder', composerPlaceholder());
+    }
+    function startPlainDictation() {
       ensureWhisper(function () {
-        if (!window.WhisperSTT || !WhisperSTT.available() || !WhisperSTT.talkContinuous) { dictate.style.display = 'none'; return; }
-        var origPh = input.getAttribute('placeholder') || 'Message Rho…';
-        input.setAttribute('data-rho-ph', origPh);
-        var flash = function (msg, revert) { input.setAttribute('placeholder', msg); if (revert) setTimeout(function () { input.setAttribute('placeholder', origPh); }, revert); };
+        if (!window.WhisperSTT || !WhisperSTT.available() || !WhisperSTT.dictate) { dictate.style.display = 'none'; return; }
+        var original = input.getAttribute('placeholder') || 'Message Rho…';
+        input.setAttribute('data-rho-ph', original);
+        if (plainDictating) { WhisperSTT.dictate({}); return; }
+        plainDictating = true;
         dictate.classList.add('rho-on');
-        WhisperSTT.talkContinuous({
-          onLevel: function (rms) { waveSetAmp(rms * 3.4); },
+        input.setAttribute('placeholder', 'Listening — tap the mic when you are done');
+        waveStart(barWave);
+        WhisperSTT.dictate({
           onStatus: function (st) {
-            if (st === 'listening') { dictate.classList.add('rho-on'); waveStart(barWave); flash('🎙 Listening — just talk; pause and it types. Tap the mic to stop.'); }
-            else if (st === 'transcribing') { flash('Transcribing…'); }
-            else if (st === 'stopped') { dictate.classList.remove('rho-on'); waveStop(barWave); input.setAttribute('placeholder', origPh); }
-            else if (st.indexOf('error') === 0 || st.indexOf('mic') === 0) { dictate.classList.remove('rho-on'); waveStop(barWave); flash(st.replace('error:', 'whisper: '), 3500); }
+            st = String(st || '');
+            if (st === 'transcribing') input.setAttribute('placeholder', 'Transcribing…');
+            else if (st.indexOf('error:') === 0 || st.indexOf('mic:') === 0) {
+              resetComposerDictation();
+              input.setAttribute('placeholder', st.indexOf('mic:') === 0 ? 'Microphone permission is off' : 'Transcription hit a snag');
+              setTimeout(function () { if (!voiceFollow.on) input.setAttribute('placeholder', original); }, 3000);
+            }
           },
-          onFinal: function (t) {
-            if (t && t.trim()) { input.value = (input.value ? input.value.trim() + ' ' : '') + t.trim(); input.setAttribute('placeholder', origPh); autogrow(); refreshSend(); try { input.focus(); } catch (e) {} }
+          onText: function (text) {
+            resetComposerDictation();
+            if (text && text.trim()) {
+              input.value = (input.value ? input.value.trim() + ' ' : '') + text.trim();
+              autogrow(); refreshSend();
+              try { input.focus(); } catch (e) {}
+            }
           }
         });
       });
+    }
+    function startVoiceFollowTurn() {
+      ensureWhisper(function () {
+        if (!voiceFollow.on) return;
+        if (!window.WhisperSTT || !WhisperSTT.available() || !WhisperSTT.talk) { exitVoiceFollow(); return; }
+        var original = input.getAttribute('placeholder') || 'Message Rho…';
+        input.setAttribute('data-rho-ph', original);
+        voiceFollow.listening = true;
+        dictate.classList.add('rho-on');
+        waveStart(barWave);
+        setVoiceFollowStatus('Listening — tap mic to return to dictation', false);
+        input.setAttribute('placeholder', 'Listening — pause naturally when you are done');
+        WhisperSTT.talk({
+          onLevel: function (rms) { if (voiceFollow.listening) waveSetAmp(rms * 3.4); },
+          onStatus: function (st) {
+            st = String(st || '');
+            if (!voiceFollow.on) return;
+            if (st === 'transcribing') { setVoiceFollowStatus('Transcribing your turn', false); input.setAttribute('placeholder', 'Transcribing…'); }
+            else if (st.indexOf('error:') === 0 || st.indexOf('mic:') === 0) exitVoiceFollow();
+          },
+          onFinal: function (text) {
+            if (!voiceFollow.on) return;
+            voiceFollow.listening = false;
+            dictate.classList.remove('rho-on');
+            waveStop(barWave);
+            input.setAttribute('placeholder', original);
+            if (!text || !text.trim()) { setVoiceFollowStatus('Voice replies on', false); return; }
+            // Put the transcript in the normal composer first so the user can
+            // see exactly what was heard, then send this voice-mode turn.
+            input.value = text.trim(); autogrow(); refreshSend();
+            send();
+          }
+        });
+      });
+    }
+    dictate.addEventListener('click', function () {
+      if (voiceFollow.on) {
+        // The second mic tap is the escape hatch the user asked for: quit the
+        // smart voice path completely and leave ordinary dictation untouched.
+        if (voiceFollow.listening) exitVoiceFollow();
+        else startVoiceFollowTurn();
+        return;
+      }
+      startPlainDictation();
     });
+    voicePause.addEventListener('click', function () {
+      var audio = voiceFollow.audio;
+      if (!audio) return;
+      if (audio.paused) audio.play().catch(function () {});
+      else audio.pause();
+    });
+    voiceStop.addEventListener('click', exitVoiceFollow);
 
     /* ---- THE BIG ONE: live voice call --------------------------------------
        Continuous listening -> brain -> spoken reply, sentence by sentence.
@@ -1393,7 +1595,7 @@
       var s = call.queue.shift();
       fetch(ENDPOINT + '/api/tts', {
         method: 'POST', headers: authHeaders(), credentials: 'include',
-        body: JSON.stringify({ text: s, voice: VOICE })
+        body: JSON.stringify({ text: s, voice: VOICE, style: 'rho' })
       }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) {
         if (!call.on) { call.playing = false; return; }
         if (!b) { call.playing = false; ttsPump(); return; }
@@ -1492,6 +1694,7 @@
     function callOpen() {
       if (!READY || !ENDPOINT) { open(); return; }
       if (auth.checked && auth.required && !auth.signedIn) { open(); return; }
+      exitVoiceFollow();
       call.on = true;
       root.classList.add('rho-call-open');
       callCrew.innerHTML = '';
