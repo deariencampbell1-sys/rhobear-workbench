@@ -209,6 +209,11 @@
   flex-direction: column;
   gap: 22px;
 }
+/* The shell toggles screens with .is-active. Keep the Builds launcher from
+   overriding the shared .screen display rule when Work (or another surface)
+   is selected; otherwise Home remains in the document flow and Work appears
+   to open on a second, broken page below it. */
+.screen.builds-home:not(.is-active) { display: none; }
 .builds-home__eyebrow { color: var(--hub-accent); font-size: .7rem; font-weight: 800; letter-spacing: .14em; }
 .builds-home__head-row { align-items: flex-end; gap: 18px; }
 .builds-home__head-row h1 { margin: 5px 0 4px; }

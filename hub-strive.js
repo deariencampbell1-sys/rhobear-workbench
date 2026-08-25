@@ -33,7 +33,11 @@
   }
 
   function attach(ta) {
-    if (!ta || ta.__strive) return; ta.__strive = true;
+    // Builds owns a dedicated stream composer. The global writing helper used
+    // to inject a second toolbar into it, which broke the pinned workstation
+    // geometry and made the live composer look like an old generic Hub form.
+    if (!ta || ta.__strive || (ta.closest && ta.closest('[data-screen="work"]'))) return;
+    ta.__strive = true;
     css();
     var bar = document.createElement("div");
     bar.className = "hub-strive";
@@ -91,8 +95,10 @@
 
   function scan() {
     var t = document.getElementById("s-work-task");
-    if (t) attach(t);
-    document.querySelectorAll(".hub-strive-target").forEach(attach);
+    if (t && !(t.closest && t.closest('[data-screen="work"]'))) attach(t);
+    document.querySelectorAll(".hub-strive-target").forEach(function (target) {
+      if (!(target.closest && target.closest('[data-screen="work"]'))) attach(target);
+    });
   }
 
   function boot() { scan(); var mo = new MutationObserver(scan); mo.observe(document.body, { childList: true, subtree: true }); }
