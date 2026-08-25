@@ -52,7 +52,7 @@
   // Rho carries ONE identity everywhere (fixed blue-violet orb); the surface
   // only tints the chrome accent (user bubble + send) per rho.css's
   // [data-rho-surface] map, and names the header subtitle "riding the <X>".
-  var SURFACE_MAP = { hub: 'the Hub', plans: 'Plans', designs: 'Designs', capturd: "Captur'd", reviews: 'Reviews', sales: 'Sales', lab: 'the Lab' };
+  var SURFACE_MAP = { hub: 'the Hub', builds: 'Builds', plans: 'Plans', designs: 'Designs', capturd: "Captur'd", reviews: 'Reviews', sales: 'Sales', lab: 'the Lab' };
   function detectSurface() {
     var s = (CFG.surface || attr('surface', '') || '').toLowerCase();
     if (s && SURFACE_MAP[s]) return s;
@@ -81,7 +81,7 @@
   // accent (user bubble + send + glow) tints to the host surface, per rho.css's
   // [data-rho-surface] map. Section labels + the "riding" subtitle stay the
   // shared teal #2A8FA8. The teal default covers any unknown surface.
-  var SURFACE_ACCENT_MAP = { hub: '#2A8FA8', plans: '#C84BAA', designs: '#C84B4B', capturd: '#4B7AC8', reviews: '#D4A843', sales: '#8FA82A', lab: '#6B2FA8' };
+  var SURFACE_ACCENT_MAP = { hub: '#2A8FA8', builds: '#2A8FA8', plans: '#C84BAA', designs: '#C84B4B', capturd: '#4B7AC8', reviews: '#D4A843', sales: '#8FA82A', lab: '#6B2FA8' };
   var SURFACE_ACCENT = SURFACE_ACCENT_MAP[SURFACE] || '#2A8FA8';
   var ACCENT = lsGet('rho.accent') || SURFACE_ACCENT;
   var VOICES = ['Charon', 'Puck', 'Kore', 'Fenrir', 'Aoede', 'Leda', 'Orus', 'Zephyr'];
@@ -194,7 +194,8 @@
   }
 
   /* ── surface tint (rho.css [data-rho-surface] map) — chrome only, never the orb ── */
-  #rho-embed[data-rho-surface="hub"]     { --rho-user-bubble: #1E3A4A; --rho-send: #2A8FA8; }
+  #rho-embed[data-rho-surface="hub"],
+  #rho-embed[data-rho-surface="builds"]   { --rho-user-bubble: #1E3A4A; --rho-send: #2A8FA8; }
   #rho-embed[data-rho-surface="plans"]   { --rho-user-bubble: #3A1A35; --rho-send: #C84BAA; }
   #rho-embed[data-rho-surface="designs"] { --rho-user-bubble: #3A1A1A; --rho-send: #C84B4B; }
   #rho-embed[data-rho-surface="capturd"] { --rho-user-bubble: #1A2A3A; --rho-send: #4B7AC8; }
