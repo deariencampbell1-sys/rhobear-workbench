@@ -250,10 +250,12 @@
     box-shadow: 0 26px 80px rgba(0,0,0,.62), 0 0 44px color-mix(in srgb, var(--rho-a) 20%, transparent);
     color: #fff; isolation: isolate;
     transition: width .38s cubic-bezier(.4,0,.2,1), height .38s cubic-bezier(.4,0,.2,1),
+      left .38s cubic-bezier(.4,0,.2,1), top .38s cubic-bezier(.4,0,.2,1),
       right .38s cubic-bezier(.4,0,.2,1), bottom .38s cubic-bezier(.4,0,.2,1), border-radius .38s ease;
   }
+  #rho-panel.rho-dragging { transition: none !important; user-select: none; }
   /* double-click the header orb → expand to a full-viewport surface */
-  #rho-embed.rho-expanded #rho-panel { width: 100vw; height: 100vh; height: 100dvh; right: 0; bottom: 0; border-radius: 0; }
+  #rho-embed.rho-expanded #rho-panel { width: 100vw; height: 100vh; height: 100dvh; left: 0 !important; top: 0 !important; right: 0 !important; bottom: 0 !important; border-radius: 0; }
   #rho-embed.rho-expanded #rho-thread { max-width: 860px; width: 100%; margin: 0 auto; padding-left: 20px; padding-right: 20px; }
   #rho-embed.rho-expanded #rho-barwrap { max-width: 860px; width: 100%; margin: 0 auto; }
   /* expanded = full-viewport hero: big centered breathing orb + ambient glow (matches the mock) */
@@ -278,7 +280,8 @@
   #rho-embed.rho-open #rho-panel { display: flex; animation: rho-rise .26s cubic-bezier(.21,1.02,.55,1); }
   @keyframes rho-rise { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
 
-  #rho-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; flex-shrink: 0; border-bottom: 1px solid var(--rho-border); position: relative; }
+  #rho-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; flex-shrink: 0; border-bottom: 1px solid var(--rho-border); position: relative; cursor: grab; touch-action: none; }
+  #rho-head.rho-dragging { cursor: grabbing; }
   .rho-head-orb { position: relative; width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; }
   .rho-head-orb .rho-orbrim { animation-duration: 9s; }
   #rho-embed.rho-busy .rho-head-orb { animation: rho-pulse 1.1s ease-in-out infinite; }
@@ -805,10 +808,80 @@
     var callLine  = root.querySelector('#rho-call-line');
     var callCrew  = root.querySelector('#rho-call-crew');
     var thinking = false;
+    var panel = root.querySelector('#rho-panel');
+    var head = root.querySelector('#rho-head');
+    var positionKey = 'rho.panel.position.v1.' + SURFACE;
+    var drag = null;
+
+    function viewportPosition(pos) {
+      var rect = panel.getBoundingClientRect();
+      var width = rect.width || Math.min(400, Math.max(0, window.innerWidth - 32));
+      var height = rect.height || Math.min(640, Math.max(0, window.innerHeight - 40));
+      var maxLeft = Math.max(8, window.innerWidth - width - 8);
+      var maxTop = Math.max(8, window.innerHeight - height - 8);
+      return {
+        left: Math.max(8, Math.min(maxLeft, Number(pos.left) || 0)),
+        top: Math.max(8, Math.min(maxTop, Number(pos.top) || 0))
+      };
+    }
+    function setPanelPosition(pos, persist) {
+      var safe = viewportPosition(pos);
+      panel.style.left = safe.left + 'px';
+      panel.style.top = safe.top + 'px';
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      if (persist) lsSet(positionKey, JSON.stringify(safe));
+    }
+    function restorePanelPosition() {
+      var raw = lsGet(positionKey);
+      if (!raw) return;
+      try {
+        var pos = JSON.parse(raw);
+        if (pos && Number.isFinite(Number(pos.left)) && Number.isFinite(Number(pos.top))) setPanelPosition(pos, false);
+      } catch (e) {}
+    }
+    function clampPanelPosition() {
+      if (!panel.style.left || root.classList.contains('rho-expanded')) return;
+      setPanelPosition({ left: parseFloat(panel.style.left), top: parseFloat(panel.style.top) }, true);
+    }
+    function dragExcluded(target) {
+      for (var node = target; node && node !== head; node = node.parentNode) {
+        var tag = (node.tagName || '').toLowerCase();
+        if (tag === 'button' || tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'a') return true;
+        if (node.classList && node.classList.contains('rho-head-orb')) return true;
+      }
+      return false;
+    }
+    function onDragStart(e) {
+      if (root.classList.contains('rho-expanded') || drag || dragExcluded(e.target)) return;
+      var rect = panel.getBoundingClientRect();
+      drag = { id: e.pointerId, dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+      panel.classList.add('rho-dragging');
+      head.classList.add('rho-dragging');
+      if (head.setPointerCapture) head.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    }
+    function onDragMove(e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      setPanelPosition({ left: e.clientX - drag.dx, top: e.clientY - drag.dy }, false);
+      e.preventDefault();
+    }
+    function onDragEnd(e) {
+      if (!drag || (e.pointerId != null && e.pointerId !== drag.id)) return;
+      var left = parseFloat(panel.style.left), top = parseFloat(panel.style.top);
+      if (Number.isFinite(left) && Number.isFinite(top)) setPanelPosition({ left: left, top: top }, true);
+      if (head.releasePointerCapture && e.pointerId != null) {
+        try { head.releasePointerCapture(e.pointerId); } catch (err) {}
+      }
+      drag = null;
+      panel.classList.remove('rho-dragging');
+      head.classList.remove('rho-dragging');
+    }
 
     function open() {
       root.classList.add('rho-open');
       launch.classList.add('rho-hidden');
+      restorePanelPosition();
       if (!greeted) { greeted = true; attachActions(append('assistant', GREETING)); }
       checkAuth();
       setTimeout(function () { input.focus(); }, 260);
@@ -824,6 +897,17 @@
 
     launch.addEventListener('click', open);
     closeBtn.addEventListener('click', close);
+
+    // Rho is a movable companion, not a fixed obstruction. Drag the header
+    // chrome anywhere in the viewport; buttons and the expand orb retain
+    // their click/double-click contracts. The position is remembered per
+    // surface so a useful placement in Builds does not hijack Plans.
+    head.setAttribute('title', 'Drag to move Rho');
+    head.addEventListener('pointerdown', onDragStart);
+    head.addEventListener('pointermove', onDragMove);
+    head.addEventListener('pointerup', onDragEnd);
+    head.addEventListener('pointercancel', onDragEnd);
+    window.addEventListener('resize', clampPanelPosition);
 
     // double-click the header orb → expand the panel to a full-viewport surface
     var headOrb = root.querySelector('.rho-head-orb');

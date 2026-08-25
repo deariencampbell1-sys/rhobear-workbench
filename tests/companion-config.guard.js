@@ -429,6 +429,20 @@ async function main() {
         'the top-corner Stop control must return the user to normal dictation');
     });
 
+  check('C2  Rho panel is a persistent draggable companion',
+    () => {
+      assert(embedSrc.includes("var positionKey = 'rho.panel.position.v1.' + SURFACE"),
+        'panel position must be scoped and persisted per surface');
+      assert(embedSrc.includes("head.addEventListener('pointerdown', onDragStart)"),
+        'the header must start pointer dragging');
+      assert(embedSrc.includes("head.addEventListener('pointermove', onDragMove)"),
+        'the header must update the panel while dragging');
+      assert(embedSrc.includes("setPanelPosition({ left: left, top: top }, true)"),
+        'the final panel position must be saved');
+      assert(embedSrc.includes('#rho-embed.rho-expanded #rho-panel'),
+        'expanded mode must retain its full-viewport contract while dragging is disabled');
+    });
+
   // B1 — negative control: an unconfigured embed must answer the warming
   // placeholder (case-insensitive) and never touch the network.
   const warm = runEmbed(embedSrc, null);
