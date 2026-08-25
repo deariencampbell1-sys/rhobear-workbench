@@ -35,7 +35,8 @@
     initialPrompt.className = 'builds-work__entry-stage';
     initialOptions.innerHTML = '<div class="builds-work__composer-title">Ask the Builds crew what to build next…</div>' +
       '<div class="builds-work__composer-row"><div class="builds-work__composer-controls">' +
-      '<span class="muted">Harness</span><button class="s-work__select" type="button" aria-label="Harness and model"><span class="dot" aria-hidden="true"></span><span class="s-work__select-label">✦ Hermes · Summit</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" fill="none"/></svg></button>' +
+      '<span class="muted">Harness</span><button class="s-work__select builds-work__harness-select" type="button" aria-label="Choose harness"><span class="dot" aria-hidden="true"></span><span class="s-work__harness-label">Hermes</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" fill="none"/></svg></button>' +
+      '<span class="muted">Model</span><button class="s-work__select builds-work__model-select" type="button" aria-label="Choose model"><span class="s-work__model-label">✦ Summit</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" fill="none"/></svg></button>' +
       '<span class="muted">Specialist</span><button class="chip s-work__assign" type="button" aria-label="Assign to specialist"><span class="s-work__assign-label">Coder</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" fill="none"/></svg></button>' +
       '<button class="chip" type="button" data-open-sheet aria-label="Open spreadsheet">Spreadsheet</button><input type="file" data-sheet-file-input accept=".xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv" hidden /></div>' +
       '<div class="builds-work__composer-actions"><span class="s-work__estimate mono muted">≈ 0 tokens</span><button class="hub-btn-primary" type="button" data-action="run-task">Send <span aria-hidden="true">→</span></button></div></div>' +
@@ -57,7 +58,7 @@
     var station = document.createElement('main'); station.className = 'builds-work__station';
     station.innerHTML = '<div class="builds-work__station-head"><div><strong>MODEL ROUTE</strong><p class="muted">R3 tier routes stay selectable across the three local harnesses.</p></div>' +
       '<div class="builds-work__station-actions"><button class="chip" type="button">Files</button><button class="chip" type="button">GitHub MCP</button><button class="chip" type="button">Vault</button><button class="chip" type="button" data-open-build-viewer>Open viewer</button></div></div>' +
-      '<div class="builds-work__route-cards"><div class="builds-work__route-card"><b>Claude SDK</b><span>R3 · speedy</span><em>Ready</em></div><div class="builds-work__route-card is-selected"><b>Hermes</b><span>R3 · speedy</span><em>Ready</em></div><div class="builds-work__route-card"><b>Pi.dev</b><span>R3 · speedy</span><em>Ready</em></div></div>';
+      '<div class="builds-work__route-cards"><button type="button" class="builds-work__route-card" data-route-harness="claude-sdk"><b>Claude SDK</b><span>R3 · speedy</span><em>Ready</em></button><button type="button" class="builds-work__route-card is-selected" data-route-harness="hermes"><b>Hermes</b><span>R3 · speedy</span><em>Ready</em></button><button type="button" class="builds-work__route-card" data-route-harness="pi"><b>Pi.dev</b><span>R3 · speedy</span><em>Ready</em></button></div>';
     var stage = document.createElement('div'); stage.className = 'builds-work__stage';
     screen.innerHTML = '';
     screen.appendChild(initialHead); screen.appendChild(layout);
@@ -138,8 +139,10 @@
   /* ── Entry model selector — REAL picker (harness → model), Hermes-driven.
      Sets the DEFAULT model used when a new conversation tab is opened.
      Each tab can still override its own model from its composer chip. */
-  var selectBtn = screen.querySelector('.s-work__select');
-  var selectLabel = screen.querySelector('.s-work__select-label');
+  var harnessBtn = screen.querySelector('.builds-work__harness-select');
+  var modelBtn = screen.querySelector('.builds-work__model-select');
+  var harnessLabel = screen.querySelector('.s-work__harness-label');
+  var modelLabel = screen.querySelector('.s-work__model-label');
   var topPills = document.querySelectorAll('.model-pill');
 
   function currentModelId() {
@@ -147,10 +150,13 @@
       ? HubCatalog.readSelection().model : 'summit';
   }
 
-  function paintSelection() {
+  function paintSelection(sel) {
     if (!window.HubCatalog) return;
-    var lbl = HubCatalog.chipLabel(HubCatalog.readSelection());
-    if (selectLabel) selectLabel.textContent = lbl;
+    sel = sel || HubCatalog.readSelection();
+    var entry = HubCatalog.findModel(sel.harness, sel.model);
+    var lbl = HubCatalog.chipLabel(sel);
+    if (harnessLabel) harnessLabel.textContent = entry ? entry.harnessLabel : 'Hermes';
+    if (modelLabel) modelLabel.textContent = lbl;
     topPills.forEach(function (p) {
       var dot = p.querySelector('.dot');
       p.textContent = '';
@@ -159,11 +165,22 @@
     });
   }
 
-  if (selectBtn && window.HubCatalog) {
+  if ((harnessBtn || modelBtn) && window.HubCatalog) {
     paintSelection();
-    selectBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      HubCatalog.openPicker(selectBtn, function () { paintSelection(); });
+    [harnessBtn, modelBtn].forEach(function (button) {
+      if (!button) return;
+      button.addEventListener('click', function (e) {
+        e.stopPropagation();
+        HubCatalog.openPicker(button, function (sel) { paintSelection(sel); });
+      });
+    });
+    screen.querySelectorAll('[data-route-harness]').forEach(function (card) {
+      card.addEventListener('click', function () {
+        var sel = { harness: card.getAttribute('data-route-harness'), model: currentModelId() };
+        HubCatalog.writeSelection(sel);
+        paintSelection(sel);
+        screen.querySelectorAll('[data-route-harness]').forEach(function (other) { other.classList.toggle('is-selected', other === card); });
+      });
     });
   }
 

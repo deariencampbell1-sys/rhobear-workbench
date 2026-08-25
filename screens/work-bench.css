@@ -304,7 +304,8 @@
 .builds-work__station-head p { margin: 4px 0 0; font-size: .76rem; }
 .builds-work__station-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .builds-work__route-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0 18px 14px; border-bottom: 1px solid var(--hub-border); }
-.builds-work__route-card { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; padding: 10px 12px; border: 1px solid var(--hub-border); border-radius: 11px; background: var(--hub-glass-bg-2); }
+.builds-work__route-card { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; padding: 10px 12px; border: 1px solid var(--hub-border); border-radius: 11px; background: var(--hub-glass-bg-2); color: var(--hub-text-primary); font: inherit; text-align: left; cursor: pointer; }
+.builds-work__route-card:hover { border-color: var(--hub-accent); }
 .builds-work__route-card b { font-size: .8rem; }
 .builds-work__route-card span { color: var(--hub-text-secondary); font-size: .7rem; }
 .builds-work__route-card em { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--hub-online); font-size: .68rem; font-style: normal; font-weight: 700; }
