@@ -39,6 +39,27 @@
       });
   })();
 
+  /* A Notes handoff is deliberately small and one-shot. Blueprints sends the
+     signed-in user to Builds with the source brief; Builds then creates the
+     normal persistent /api/sessions record and streams through the same SSE
+     contract as every other Build. No transcript is fabricated in the URL. */
+  function readBriefHandoff() {
+    try {
+      var raw = new URLSearchParams(window.location.search).get('brief');
+      if (!raw) return null;
+      var bin = atob(raw.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((raw.length + 3) % 4));
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      var parsed = JSON.parse(new TextDecoder().decode(bytes));
+      if (!parsed || !parsed.noteId || !parsed.body) return null;
+      var clean = new URL(window.location.href);
+      clean.searchParams.delete('brief');
+      window.history.replaceState({}, '', clean.pathname + clean.search + clean.hash);
+      return parsed;
+    } catch (e) { return null; }
+  }
+  var _briefHandoff = readBriefHandoff();
+
   /* ── HTTP helpers (same-origin, cookie auth, AbortController timeout) ── */
   function getJSON(url, ms) {
     ms = ms || 8000;
@@ -188,6 +209,7 @@
     settings: {
       save: function (body) { return patchJSON('/api/me', body); },
     },
+    pendingBrief: _briefHandoff,
 
     /* ── Storage (BYO R2 buckets) ──────────────────────────── */
     storage: {
@@ -213,6 +235,7 @@
         body: JSON.stringify({
           message: payload.message,
           system_message: payload.system_message,
+          harness: payload.harness,
           model: payload.model,
         }),
         credentials: 'include',

@@ -214,7 +214,8 @@
       id: id,
       title: opts.title || 'New conversation',
       sessionId: opts.sessionId || null,
-      model: currentModelId(),
+      harness: opts.harness || (window.HubCatalog && HubCatalog.readSelection ? HubCatalog.readSelection().harness : 'house'),
+      model: opts.model || currentModelId(),
       crewIdx: 3,        // "Coder"
       autoIdx: 1,        // "Act"
       attached: null,    // { name, size } when a non-sheet file is queued
@@ -282,7 +283,7 @@
   function pageTemplate(tab) {
     var crewLbl = SPECIALISTS[tab.crewIdx];
     var autoLbl = AUTONOMY[tab.autoIdx].label;
-    var modelLbl = (window.HubCatalog ? HubCatalog.chipLabel({ harness: 'house', model: tab.model }) : tab.model);
+    var modelLbl = (window.HubCatalog ? HubCatalog.chipLabel({ harness: tab.harness, model: tab.model }) : tab.model);
     return '' +
       '<div class="s-work__chat hub-card">' +
         '<div class="s-work__chat-head">' +
@@ -427,6 +428,7 @@
       if (!window.HubCatalog) return;
       e.stopPropagation();
       HubCatalog.openPicker(modelBtn, function (sel) {
+        tab.harness = sel.harness;
         tab.model = sel.model;
         if (tab.els.modelLabel) tab.els.modelLabel.textContent = HubCatalog.chipLabel(sel);
       });
@@ -667,6 +669,7 @@
         sessionId: sid,
         message: message,
         model: tab.model,
+        harness: tab.harness,
         system_message: buildSystemMessage(tab),
       }, {
         onText: function (delta) {
@@ -792,4 +795,17 @@
 
   /* ── Initial load ──────────────────────────────────────────────────── */
   loadSessions();
+  /* Notes → Builds handoff: start the real persistent session after the Work
+     surface is mounted. The brief is consumed once by api.js and then removed
+     from the address bar, so reloads never duplicate a build. */
+  if (typeof HubAPI !== 'undefined' && HubAPI.pendingBrief) {
+    var handoff = HubAPI.pendingBrief;
+    setTimeout(function () {
+      var workNav = document.querySelector('[data-nav-item="work"]');
+      if (workNav) workNav.click();
+      var prompt = 'Source brief: ' + handoff.title + '\n\n' + handoff.body;
+      var t = newTab({ title: handoff.title, harness: handoff.harness, model: handoff.model, seedMessage: prompt });
+      activateTab(t.id);
+    }, 0);
+  }
 })();
