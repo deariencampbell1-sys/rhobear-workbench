@@ -1,6 +1,6 @@
 {
-  "name": "RHOBEAR Hub",
-  "short_name": "Hub",
+  "name": "RHOBEAR Builds",
+  "short_name": "Builds",
   "description": "Run your crew of AI specialists — dispatch work, watch runs, keep files, notes and memory. All in one calm workbench.",
   "id": "/",
   "start_url": "/",

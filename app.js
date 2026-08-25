@@ -114,7 +114,7 @@
           return '\
           <img class="ink-bear--lg" src="assets/hub-bear.png" alt="" />\
           <div class="wt-step">Step 1 of 5</div>\
-          <div class="wt-title">Welcome to <span class="accent">RHOBEAR Hub</span></div>\
+          <div class="wt-title">Welcome to <span class="accent">RHOBEAR Builds</span></div>\
           <div class="wt-body">Your workbench for running a crew of AI specialists against your own models. Dispatch work, watch runs, keep files, notes and memory — all in one calm place.</div>';
         },
         actions: function () { return primaryNext('Continue'); }
@@ -166,7 +166,7 @@
           <div class="wt-body">Your workspace is ready. Your crew is standing by.</div>';
         },
         actions: function () {
-          return '<button class="hub-btn-primary wt-go" style="flex:1;justify-content:center;">Go to Hub\
+          return '<button class="hub-btn-primary wt-go" style="flex:1;justify-content:center;">Go to Builds\
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>';
         }
       }
@@ -261,11 +261,11 @@
     w.innerHTML =
       '<div class="hub-rho-widget__head">' +
         '<span class="hub-rho-widget__orb"></span>' +
-        '<span class="hub-rho-widget__names"><b>Rho</b><i>riding the Hub</i></span>' +
+        '<span class="hub-rho-widget__names"><b>Rho</b><i>riding Builds</i></span>' +
         '<button class="hub-rho-widget__close" aria-label="Close">&times;</button>' +
       '</div>' +
       '<div class="hub-rho-widget__msgs" id="rhoMsgs">' +
-        '<div class="hub-rho-bubble hub-rho-bubble--agent">Hey — I’m Rho, riding the Hub. Ask me about your crew, runs, or board.</div>' +
+        '<div class="hub-rho-bubble hub-rho-bubble--agent">Hey — I’m Rho, riding Builds. Ask me about your crew, runs, or board.</div>' +
         '<div class="hub-rho-bubble hub-rho-bubble--user">What’s running right now?</div>' +
         '<div class="hub-rho-bubble hub-rho-bubble--agent">Two runs live: <b>plans-mcp-w1</b> is verifying, <b>hub-glass-pass</b> just opened a PR. Board has 3 notes waiting on you.</div>' +
       '</div>' +
@@ -341,7 +341,7 @@
       <div class="hub-signin">\
         <div class="hub-card hub-card--static hub-signin__card">\
           <img src="assets/hub-bear.png" alt="" class="hub-signin__mark" />\
-          <h1 class="hub-signin__title">RHOBEAR Hub</h1>\
+           <h1 class="hub-signin__title">RHOBEAR Builds</h1>\
           <p class="hub-signin__blurb">\
             Sign in to dispatch your crew, track runs, and manage your workspace.</p>\
           <a href="/api/auth/google" class="hub-btn-primary hub-signin__cta">\
