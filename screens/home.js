@@ -9,6 +9,45 @@
   var screen = document.querySelector('[data-screen="home"]');
   if (!screen) return;
 
+  /* Builds is a stream workstation, not a generic crew dashboard. The old
+     Home markup is retained for data compatibility, but the visible surface
+     is rebuilt here so the composer has one stable bottom position and every
+     entry point opens the real Work stream. */
+  screen.classList.add('builds-home');
+  var legacyGrid = screen.querySelector('.s-home__grid');
+  var legacyRule = screen.querySelector('.section-rule');
+  var legacyCrew = screen.querySelector('.s-home__crew-section');
+  if (legacyGrid) legacyGrid.hidden = true;
+  if (legacyRule) legacyRule.hidden = true;
+  if (legacyCrew) legacyCrew.hidden = true;
+  var pageHead = screen.querySelector('.page-head');
+  if (pageHead) {
+    pageHead.innerHTML = '<div class="builds-home__eyebrow">BUILDS HARNESS</div>' +
+      '<div class="between builds-home__head-row"><div><h1>Start a build stream</h1>' +
+      '<p class="sub">Pick a model, choose a harness, and keep every turn in one persistent stream.</p></div>' +
+      '<div class="row builds-home__head-actions"><button class="hub-btn-ghost" type="button" data-open-build-streams>Open streams</button>' +
+      '<button class="hub-btn-ghost" type="button" data-open-build-viewer>Open viewer</button></div></div>';
+  }
+  var prompt = screen.querySelector('.s-home__prompt');
+  if (prompt) {
+    prompt.className = 'hub-card builds-home__launcher';
+    prompt.innerHTML = '<div class="between builds-home__launcher-head"><div><h2>New build stream</h2>' +
+      '<p class="muted">Every turn stays in the stream rail.</p></div>' +
+      '<div class="builds-home__mode" role="group" aria-label="Stream mode"><button class="is-active" type="button">Chat</button>' +
+      '<button type="button" data-open-build-compare>Compare 2 models</button></div></div>' +
+      '<label class="sr-only" for="s-home-prompt-input">Describe what the Builds crew should build</label>' +
+      '<textarea id="s-home-prompt-input" class="builds-home__textarea" rows="3" placeholder="Describe what the Builds crew should build…"></textarea>' +
+      '<div class="builds-home__controls"><div class="builds-home__selectors"><span class="muted">Harness</span>' +
+      '<button class="builds-home__select" type="button" data-home-harness>✦ Hermes <span>⌄</span></button>' +
+      '<span class="muted">Model</span><button class="builds-home__select" type="button" data-home-model>✦ Summit <span>⌄</span></button></div>' +
+      '<button class="hub-btn-primary builds-home__send" type="button" data-action="run-crew">Open build stream <span aria-hidden="true">→</span></button></div>' +
+      '<div class="builds-home__route"><div class="builds-home__route-head"><div><strong>MODEL ROUTE</strong><span class="muted">R3 tier routes stay selectable across the three local harnesses.</span></div>' +
+      '<span class="chip chip--mono">3 ready</span></div><div class="builds-home__route-cards">' +
+      '<div class="builds-home__route-card"><b>Claude SDK</b><span>R3 · speedy</span><em>Ready</em></div>' +
+      '<div class="builds-home__route-card is-selected"><b>Hermes</b><span>R3 · speedy</span><em>Ready</em></div>' +
+      '<div class="builds-home__route-card"><b>Pi.dev</b><span>R3 · speedy</span><em>Ready</em></div></div></div>';
+  }
+
   /* ── Helpers ────────────────────────────────────────────────────────── */
   function esc(s) {
     if (!s) return '';
@@ -160,16 +199,30 @@
       if (!goal) { if (textarea) textarea.focus(); return; }
 
       if (typeof HubAPI !== 'undefined' && HubAPI.sessions) {
-        HubAPI.sessions.create(goal).then(function (result) {
-          if (result.ok) {
-            // Navigate to Work screen to show the session
-            var workNav = document.querySelector('[data-nav-item="work"]');
-            if (workNav && typeof workNav.click === 'function') workNav.click();
-          }
-        });
+        var workNav = document.querySelector('[data-nav-item="work"]');
+        if (workNav && typeof workNav.click === 'function') workNav.click();
+        setTimeout(function () {
+          var workInput = document.querySelector('[data-screen="work"] #s-work-task');
+          var workRun = document.querySelector('[data-screen="work"] [data-action="run-task"]');
+          if (workInput && workRun) { workInput.value = goal; workInput.dispatchEvent(new Event('input', { bubbles: true })); workRun.click(); }
+        }, 60);
       }
     });
   }
+
+  function openWork() {
+    var workNav = document.querySelector('[data-nav-item="work"]');
+    if (workNav && typeof workNav.click === 'function') workNav.click();
+  }
+  var openStreams = screen.querySelector('[data-open-build-streams]');
+  if (openStreams) openStreams.addEventListener('click', openWork);
+  var openViewer = screen.querySelector('[data-open-build-viewer]');
+  if (openViewer) openViewer.addEventListener('click', function () {
+    var viewer = document.querySelector('[data-nav-item="viewer"]');
+    if (viewer) viewer.click(); else openWork();
+  });
+  var compare = screen.querySelector('[data-open-build-compare]');
+  if (compare) compare.addEventListener('click', openWork);
 
   /* ── 6. View all runs — navigate to runs screen ─────────────────────── */
   var viewRunsBtn = screen.querySelector('[data-action="view-runs"]');

@@ -18,6 +18,58 @@
   var screen = document.querySelector('[data-screen="work"]');
   if (!screen) return;
 
+  /* The workstation owns the viewport. Keep the old task/stat nodes only as
+     compatibility hooks for the live stream code; the visible entry surface
+     is a stream rail, model route, viewer stage, and bottom composer. */
+  var initialHead = screen.querySelector('.page-head');
+  var initialPrompt = screen.querySelector('.s-work__prompt-card');
+  var initialOptions = screen.querySelector('.s-work__options');
+  if (initialHead && initialPrompt && initialOptions) {
+    screen.classList.add('builds-workstation');
+    initialHead.innerHTML = '<div class="builds-work__eyebrow">BUILDS</div>' +
+      '<h1>New build stream</h1><p class="sub">Every turn stays in the stream rail. Thinking, tools, and the final answer stay together.</p>';
+    initialPrompt.innerHTML = '<div class="builds-work__stage-empty"><div class="builds-work__stage-orb">R</div>' +
+      '<h2>What are we building?</h2><p class="muted">Ask the Builds crew. Your viewer opens beside the active stream when a build produces something to inspect.</p>' +
+      '<div class="builds-work__examples"><button type="button" data-build-example="inspect the current build queue">Try “inspect the current build queue”</button>' +
+      '<button type="button" data-build-example="compare Peak and Summit">Try “compare Peak and Summit”</button></div></div>';
+    initialPrompt.className = 'builds-work__entry-stage';
+    initialOptions.innerHTML = '<div class="builds-work__composer-title">Ask the Builds crew what to build next…</div>' +
+      '<div class="builds-work__composer-row"><div class="builds-work__composer-controls">' +
+      '<span class="muted">Harness</span><button class="s-work__select" type="button" aria-label="Harness and model"><span class="dot" aria-hidden="true"></span><span class="s-work__select-label">✦ Hermes · Summit</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" fill="none"/></svg></button>' +
+      '<span class="muted">Specialist</span><button class="chip s-work__assign" type="button" aria-label="Assign to specialist"><span class="s-work__assign-label">Coder</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" fill="none"/></svg></button>' +
+      '<button class="chip" type="button" data-open-sheet aria-label="Open spreadsheet">Spreadsheet</button><input type="file" data-sheet-file-input accept=".xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv" hidden /></div>' +
+      '<div class="builds-work__composer-actions"><span class="s-work__estimate mono muted">≈ 0 tokens</span><button class="hub-btn-primary" type="button" data-action="run-task">Send <span aria-hidden="true">→</span></button></div></div>' +
+      '<div class="s-work__focus-row" role="group" aria-label="Autonomy"><button class="hub-filter-pill active" type="button">Auto</button><button class="hub-filter-pill" type="button">Suggest</button><button class="hub-filter-pill" type="button">Act</button></div>';
+    initialOptions.className = 'builds-work__entry-composer';
+    var task = document.createElement('textarea');
+    task.id = 's-work-task'; task.className = 's-work__textarea'; task.rows = 2;
+    task.setAttribute('aria-label', 'Describe what the Builds crew should build');
+    task.placeholder = 'Describe what the Builds crew should build…';
+    initialOptions.insertBefore(task, initialOptions.querySelector('.builds-work__composer-title'));
+
+    var layout = document.createElement('div'); layout.className = 'builds-work__layout';
+    var rail = document.createElement('aside'); rail.className = 'builds-work__rail';
+    rail.innerHTML = '<div class="builds-work__rail-head"><strong>Streams</strong><span class="chip chip--mono">0</span></div>' +
+      '<button class="hub-btn-ghost builds-work__new-stream" type="button" data-action="new-tab">+ New stream</button>' +
+      '<div class="builds-work__rail-empty">No saved streams yet. Start one and it will stay here.</div>' +
+      '<ul class="s-work__list builds-work__stream-list" aria-label="Saved build streams"></ul>' +
+      '<div class="builds-work__rail-foot">Session history is live</div>';
+    var station = document.createElement('main'); station.className = 'builds-work__station';
+    station.innerHTML = '<div class="builds-work__station-head"><div><strong>MODEL ROUTE</strong><p class="muted">R3 tier routes stay selectable across the three local harnesses.</p></div>' +
+      '<div class="builds-work__station-actions"><button class="chip" type="button">Files</button><button class="chip" type="button">GitHub MCP</button><button class="chip" type="button">Vault</button><button class="chip" type="button" data-open-build-viewer>Open viewer</button></div></div>' +
+      '<div class="builds-work__route-cards"><div class="builds-work__route-card"><b>Claude SDK</b><span>R3 · speedy</span><em>Ready</em></div><div class="builds-work__route-card is-selected"><b>Hermes</b><span>R3 · speedy</span><em>Ready</em></div><div class="builds-work__route-card"><b>Pi.dev</b><span>R3 · speedy</span><em>Ready</em></div></div>';
+    var stage = document.createElement('div'); stage.className = 'builds-work__stage';
+    screen.innerHTML = '';
+    screen.appendChild(initialHead); screen.appendChild(layout);
+    layout.appendChild(rail); layout.appendChild(station);
+    station.appendChild(stage); station.appendChild(initialOptions);
+    stage.innerHTML = '<div class="builds-work__stage-placeholder"><div class="builds-work__stage-orb">R</div><h2>What are we building?</h2><p class="muted">Ask the Builds crew. Thinking, tools, and the final answer stay together in the stream.</p><div class="builds-work__examples"><button type="button" data-build-example="inspect the current build queue">Try “inspect the current build queue”</button><button type="button" data-build-example="compare Peak and Summit">Try “compare Peak and Summit”</button></div></div>';
+    var examples = screen.querySelectorAll('[data-build-example]');
+    examples.forEach(function (button) { button.addEventListener('click', function () { task.value = button.getAttribute('data-build-example') || ''; task.dispatchEvent(new Event('input', { bubbles: true })); task.focus(); }); });
+    var viewerButton = screen.querySelector('[data-open-build-viewer]');
+    if (viewerButton) viewerButton.addEventListener('click', function () { var viewer = document.querySelector('[data-nav-item="viewer"]'); if (viewer) viewer.click(); });
+  }
+
   /* ── Helpers ────────────────────────────────────────────────────────── */
   function esc(s) {
     if (!s) return '';
@@ -92,7 +144,7 @@
 
   function currentModelId() {
     return (window.HubCatalog && HubCatalog.readSelection())
-      ? HubCatalog.readSelection().model : 'core';
+      ? HubCatalog.readSelection().model : 'summit';
   }
 
   function paintSelection() {
@@ -181,6 +233,11 @@
     var optionsRow = screen.querySelector('.s-work__options');
     if (optionsRow && optionsRow.parentNode) optionsRow.parentNode.insertBefore(bench, optionsRow.nextSibling);
     else screen.appendChild(bench);
+    var entryStage = screen.querySelector('.builds-work__stage');
+    var entryPrompt = screen.querySelector('.builds-work__entry-stage');
+    if (entryStage) entryStage.hidden = true;
+    if (entryPrompt) entryPrompt.hidden = true;
+    if (optionsRow) optionsRow.hidden = true;
 
     _bench = { root: bench, tabs: bench.querySelector('[data-work-tabs]'), pages: bench.querySelector('[data-work-pages]') };
     _bench.root.querySelector('[data-action="new-tab"]').addEventListener('click', function () {
@@ -214,7 +271,7 @@
       id: id,
       title: opts.title || 'New conversation',
       sessionId: opts.sessionId || null,
-      harness: opts.harness || (window.HubCatalog && HubCatalog.readSelection ? HubCatalog.readSelection().harness : 'house'),
+      harness: opts.harness || (window.HubCatalog && HubCatalog.readSelection ? HubCatalog.readSelection().harness : 'hermes'),
       model: opts.model || currentModelId(),
       crewIdx: 3,        // "Coder"
       autoIdx: 1,        // "Act"

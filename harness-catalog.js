@@ -22,46 +22,20 @@
      (backend may list "core", the openrouter pin, or a legacy name). */
   var HARNESSES = [
     {
-      id: 'house',
-      label: 'House',
-      glyph: '★',
-      tagline: 'RHOBEAR house lineup — Core · Summit · Peak',
-      models: [
-        { model: 'core',   label: 'Core',   glyph: '★', note: 'everyday',        aliases: ['deepseek/deepseek-v4-flash', 'deepseek-v4-flash'] },
-        { model: 'summit', label: 'Summit', glyph: '✻', note: 'speedy',          aliases: ['inclusionai/ling-2.6-flash', 'ling-2.6-flash'] },
-        { model: 'peak',   label: 'Peak',   glyph: '◆', note: 'top · think:high', aliases: ['z-ai/glm-5.2', 'glm-5.2', 'glm-5', 'glm'] },
-      ],
+      id: 'hermes', label: 'Hermes', glyph: '✦', tagline: 'R3 · native agent harness',
+      models: [{ model: 'summit', label: 'Summit', glyph: '✦', note: 'R3 · speedy', aliases: ['inclusionai/ling-2.6-flash', 'ling-2.6-flash'] }],
     },
     {
-      id: 'claude',
-      label: 'Claude',
-      glyph: '◈',
-      tagline: 'Anthropic flagships — pick your model',
-      models: [
-        { model: 'anthropic/claude-opus-4-8',   label: 'Opus 4.8',   note: 'most capable',  aliases: ['claude-opus-4-8', 'opus-4-8'] },
-        { model: 'anthropic/claude-opus-4-7',   label: 'Opus 4.7',   note: 'deep',          aliases: ['claude-opus-4-7', 'opus-4-7'] },
-        { model: 'anthropic/claude-sonnet-5',   label: 'Sonnet 5',   note: 'balanced',      aliases: ['claude-sonnet-5', 'sonnet-5'] },
-        { model: 'anthropic/claude-sonnet-4-6', label: 'Sonnet 4.6', note: 'daily driver',  aliases: ['claude-sonnet-4-6', 'sonnet-4-6'] },
-        { model: 'anthropic/claude-fable-5',    label: 'Fable 5',    note: 'creative',      aliases: ['claude-fable-5', 'fable-5'] },
-        { model: 'anthropic/claude-haiku-4-5',  label: 'Haiku 4.5',  note: 'fast lane',     aliases: ['claude-haiku-4-5', 'haiku-4-5'] },
-      ],
+      id: 'claude-sdk', label: 'Claude SDK', glyph: '◈', tagline: 'R3 · Claude tool protocol',
+      models: [{ model: 'summit', label: 'Summit', glyph: '✦', note: 'R3 · speedy', aliases: ['inclusionai/ling-2.6-flash', 'ling-2.6-flash'] }],
     },
     {
-      id: 'open',
-      label: 'Open',
-      glyph: '⬡',
-      tagline: 'Open models Hermes surfaces',
-      models: [
-        { model: 'z-ai/glm-5.2',          label: 'GLM 5.2',     note: 'think:high', aliases: ['glm-5.2', 'glm-5', 'glm'] },
-        { model: 'deepseek/deepseek-v3',  label: 'DeepSeek V3', note: 'cheap · strong', aliases: ['deepseek-v3'] },
-        { model: 'deepseek/deepseek-r1',  label: 'DeepSeek R1', note: 'reasoning',  aliases: ['deepseek-r1'] },
-        { model: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro', note: 'long ctx', aliases: ['gemini-2.5-pro'] },
-        { model: 'moonshot/kimi-k2',      label: 'Kimi K2',     note: 'agentic',    aliases: ['kimi-k2'] },
-      ],
+      id: 'pi', label: 'Pi.dev', glyph: 'π', tagline: 'R3 · Pi developer harness',
+      models: [{ model: 'summit', label: 'Summit', glyph: '✦', note: 'R3 · speedy', aliases: ['inclusionai/ling-2.6-flash', 'ling-2.6-flash'] }],
     },
   ];
 
-  var DEFAULT = { harness: 'house', model: 'core' };
+  var DEFAULT = { harness: 'hermes', model: 'summit' };
   var STORE_KEY = 'hub.brain.selection';
 
   function esc(s) {
