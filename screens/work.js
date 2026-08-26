@@ -372,6 +372,18 @@
     return _bench;
   }
 
+  /* The resting rail's primary action must enter the same persistent bench
+     as the first Send action. Keep this explicit instead of relying on a
+     document-level delegate so the control remains stable after refresh. */
+  var initialNewStream = screen.querySelector('.builds-work__new-stream');
+  if (initialNewStream) {
+    initialNewStream.addEventListener('click', function () {
+      var t = newTab({ title: 'New conversation' });
+      activateTab(t.id);
+      if (t.els.composer) t.els.composer.focus();
+    });
+  }
+
   function renderEmptyState() {
     if (!_bench) return;
     if (_tabs.length > 0) {
