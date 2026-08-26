@@ -1,16 +1,16 @@
 /* RHOBEAR Rho — the LIVING plasma orb. Real-time <canvas> render: electric
    plasma filaments churning from a breathing core inside a glass sphere, holographic
    bloom, and genuine floating drift. Not a bubble, not a static image, not an emblem.
-   Per-surface colour (Hub = teal, Builds = RHOBEAR magenta). States: idle · thinking · speaking. Self-mounting.
+   Per-surface colour (Hub + Builds = teal, Plans = RHOBEAR magenta). States: idle · thinking · speaking. Self-mounting.
    Canon: ~/.claude/canon/RHO-PLASMA-ORB.md */
 (function () {
   "use strict";
   if (window.__rhoOrbLive) return; window.__rhoOrbLive = true;
 
-  // ---- palette (surface-owned; Builds is the RHOBEAR magenta surface) ----
+  // ---- palette (surface-owned; Builds keeps the original teal surface) ----
   var SURFACES = {
     hub:     { core: "#F0FEFF", a: "#5FE9DC", b: "#22B8CE", c: "#12617A", spark: "#B9F6FF", violet: "#6E7BF2" },
-    builds:  { core: "#FFF0FB", a: "#FF7FE6", b: "#C84BAA", c: "#7D2E77", spark: "#FFC6F2", violet: "#8A5CF0" },
+    builds:  { core: "#F0FEFF", a: "#5FE9DC", b: "#22B8CE", c: "#12617A", spark: "#B9F6FF", violet: "#6E7BF2" },
     plans:   { core: "#FFF0FB", a: "#FF7FE6", b: "#C84BAA", c: "#7D2E77", spark: "#FFC6F2", violet: "#8A5CF0" },
     sales:   { core: "#FBFFE8", a: "#DDE85F", b: "#AEC22A", c: "#6F7A1A", spark: "#F2FFB9", violet: "#9AD84B" },
     reviews: { core: "#FFF6E8", a: "#F0C25F", b: "#C8912A", c: "#7A5A1A", spark: "#FFE6B9", violet: "#E0A84B" }

@@ -76,9 +76,9 @@
   // Personalization survives reloads; the surface accent is only the default.
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-  // The host surface owns Rho's chrome tint. Builds and Blueprints both use
-  // RHOBEAR's specific magenta; teal belongs to Hub.
-  var SURFACE_ACCENT_MAP = { hub: '#2A8FA8', builds: '#C84BAA', plans: '#C84BAA', designs: '#C84B4B', capturd: '#4B7AC8', reviews: '#D4A843', sales: '#8FA82A', lab: '#6B2FA8' };
+  // The host surface owns Rho's chrome tint. Builds keeps its original teal;
+  // Plans owns the RHOBEAR magenta treatment.
+  var SURFACE_ACCENT_MAP = { hub: '#2A8FA8', builds: '#2A8FA8', plans: '#C84BAA', designs: '#C84B4B', capturd: '#4B7AC8', reviews: '#D4A843', sales: '#8FA82A', lab: '#6B2FA8' };
   var SURFACE_ACCENT = SURFACE_ACCENT_MAP[SURFACE] || '#2A8FA8';
   var ACCENT = lsGet('rho.accent') || SURFACE_ACCENT;
   var VOICES = ['Charon', 'Puck', 'Kore', 'Fenrir', 'Aoede', 'Leda', 'Orus', 'Zephyr'];
@@ -192,7 +192,7 @@
 
   /* ── surface tint (rho.css [data-rho-surface] map) — chrome only, never the orb ── */
   #rho-embed[data-rho-surface="hub"]       { --rho-user-bubble: #1E3A4A; --rho-send: #2A8FA8; }
-  #rho-embed[data-rho-surface="builds"]    { --rho-user-bubble: #3A1A35; --rho-send: #C84BAA; }
+  #rho-embed[data-rho-surface="builds"]    { --rho-user-bubble: #1E3A4A; --rho-send: #2A8FA8; }
   #rho-embed[data-rho-surface="plans"]   { --rho-user-bubble: #3A1A35; --rho-send: #C84BAA; }
   #rho-embed[data-rho-surface="designs"] { --rho-user-bubble: #3A1A1A; --rho-send: #C84B4B; }
   #rho-embed[data-rho-surface="capturd"] { --rho-user-bubble: #1A2A3A; --rho-send: #4B7AC8; }
