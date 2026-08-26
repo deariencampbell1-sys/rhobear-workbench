@@ -335,7 +335,7 @@
 .builds-work__viewer-canvas, .builds-work__viewer-frame-wrap canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 .builds-work__viewer-frame-wrap canvas { z-index: 2; cursor: crosshair; touch-action: none; }
 .builds-work__viewer-frame-wrap canvas[hidden] { display: none; }
-.builds-work__viewer-empty { position: absolute; z-index: 1; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 20px; color: var(--hub-text-secondary); text-align: center; pointer-events: none; }
+.builds-work__viewer-empty { position: absolute; z-index: 1; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 20px; background: var(--hub-bg); color: var(--hub-text-secondary); text-align: center; pointer-events: none; }
 .builds-work__viewer-empty strong { color: var(--hub-text-primary); font-size: .9rem; }
 .builds-work__viewer-empty span { max-width: 220px; font-size: .73rem; line-height: 1.45; }
 .builds-work__viewer-empty[hidden] { display: none; }
