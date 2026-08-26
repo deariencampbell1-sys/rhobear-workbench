@@ -49,9 +49,8 @@
   var TITLE    = CFG.title   || attr('title', 'Rho');
 
   // ---- surface: which RHOBEAR app is Rho riding? -------------------------
-  // Rho carries ONE identity everywhere (fixed blue-violet orb); the surface
-  // only tints the chrome accent (user bubble + send) per rho.css's
-  // [data-rho-surface] map, and names the header subtitle "riding the <X>".
+  // Rho carries one identity everywhere; each host supplies the surface tint
+  // and the shared live orb renderer uses that same surface palette.
   var SURFACE_MAP = { hub: 'the Hub', builds: 'Builds', plans: 'Plans', designs: 'Designs', capturd: "Captur'd", reviews: 'Reviews', sales: 'Sales', lab: 'the Lab' };
   function detectSurface() {
     var s = (CFG.surface || attr('surface', '') || '').toLowerCase();
@@ -77,11 +76,9 @@
   // Personalization survives reloads; the surface accent is only the default.
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-  // Pack law: the ORB body is fixed blue-violet everywhere; only the chrome
-  // accent (user bubble + send + glow) tints to the host surface, per rho.css's
-  // [data-rho-surface] map. Section labels + the "riding" subtitle stay the
-  // shared teal #2A8FA8. The teal default covers any unknown surface.
-  var SURFACE_ACCENT_MAP = { hub: '#2A8FA8', builds: '#2A8FA8', plans: '#C84BAA', designs: '#C84B4B', capturd: '#4B7AC8', reviews: '#D4A843', sales: '#8FA82A', lab: '#6B2FA8' };
+  // The host surface owns Rho's chrome tint. Builds and Blueprints both use
+  // RHOBEAR's specific magenta; teal belongs to Hub.
+  var SURFACE_ACCENT_MAP = { hub: '#2A8FA8', builds: '#C84BAA', plans: '#C84BAA', designs: '#C84B4B', capturd: '#4B7AC8', reviews: '#D4A843', sales: '#8FA82A', lab: '#6B2FA8' };
   var SURFACE_ACCENT = SURFACE_ACCENT_MAP[SURFACE] || '#2A8FA8';
   var ACCENT = lsGet('rho.accent') || SURFACE_ACCENT;
   var VOICES = ['Charon', 'Puck', 'Kore', 'Fenrir', 'Aoede', 'Leda', 'Orus', 'Zephyr'];
@@ -194,8 +191,8 @@
   }
 
   /* ── surface tint (rho.css [data-rho-surface] map) — chrome only, never the orb ── */
-  #rho-embed[data-rho-surface="hub"],
-  #rho-embed[data-rho-surface="builds"]   { --rho-user-bubble: #1E3A4A; --rho-send: #2A8FA8; }
+  #rho-embed[data-rho-surface="hub"]       { --rho-user-bubble: #1E3A4A; --rho-send: #2A8FA8; }
+  #rho-embed[data-rho-surface="builds"]    { --rho-user-bubble: #3A1A35; --rho-send: #C84BAA; }
   #rho-embed[data-rho-surface="plans"]   { --rho-user-bubble: #3A1A35; --rho-send: #C84BAA; }
   #rho-embed[data-rho-surface="designs"] { --rho-user-bubble: #3A1A1A; --rho-send: #C84B4B; }
   #rho-embed[data-rho-surface="capturd"] { --rho-user-bubble: #1A2A3A; --rho-send: #4B7AC8; }
@@ -918,21 +915,44 @@
       headOrb.addEventListener('dblclick', function () { root.classList.toggle('rho-expanded'); });
     }
 
-    // ---- sign-in: Rho spends credits, so Rho knows who you are --------------
+    // ---- sign-in: Rho spends the host account's RHOBEAR credits ------------
     var signinCard = null;
+    function hostAccountIsSignedIn() {
+      var user = window.__user;
+      return !!(user && typeof user === 'object' &&
+        (user.email || user.id || user.user_id || user.sub));
+    }
+    function applyAuthPayload(j) {
+      var data = j && j.data && typeof j.data === 'object' ? j.data : j;
+      var user = data && (data.user || data.account || data.profile);
+      auth.checked = true;
+      auth.required = data && data.authRequired !== undefined ? !!data.authRequired : true;
+      auth.signedIn = hostAccountIsSignedIn() || !!(data && (data.signedIn || data.authenticated)) ||
+        !!(user && typeof user === 'object' && (user.email || user.id || user.user_id || user.sub));
+      auth.signin = (data && data.signin) || 'https://workbench.rhobear.ai/signin';
+      if (auth.required && !auth.signedIn) showSigninCard();
+      else hideSigninCard();
+    }
     function checkAuth() {
       if (!READY || !ENDPOINT) return;
+      // The host shell has already authenticated this account through the
+      // central RHOBEAR session. Do not flash a second, companion-only sign-in
+      // card while the companion endpoint catches up.
+      if (hostAccountIsSignedIn()) {
+        applyAuthPayload({ authRequired: true, signedIn: true });
+        return;
+      }
       fetch(ENDPOINT + '/api/me', { credentials: 'include', headers: TOKEN ? { 'Authorization': 'Bearer ' + TOKEN } : {} })
         .then(function (r) { return r.json(); })
-        .then(function (j) {
-          auth.checked = true;
-          auth.required = !!(j && j.authRequired);
-          auth.signedIn = !!(j && j.signedIn);
-          auth.signin = (j && j.signin) || 'https://workbench.rhobear.ai/signin';
-          if (auth.required && !auth.signedIn) showSigninCard();
-          else hideSigninCard();
-        }).catch(function () {});
+        .then(applyAuthPayload).catch(function () {
+          // A transient companion probe must not replace an already usable
+          // host session with a sign-in wall.
+          if (hostAccountIsSignedIn()) applyAuthPayload({ authRequired: true, signedIn: true });
+        });
     }
+    window.addEventListener('rhobear:auth', function (e) {
+      if (e && e.detail && e.detail.signedIn) applyAuthPayload({ authRequired: true, signedIn: true });
+    });
     function showSigninCard() {
       if (signinCard && signinCard.isConnected) { thread.scrollTop = thread.scrollHeight; return; }
       signinCard = document.createElement('div');
@@ -1351,7 +1371,7 @@
       // unexpectedly start speaking again.
       var voiceReply = voiceFollow.on;
       stopMsgSpeak();
-      if (READY && ENDPOINT && auth.checked && auth.required && !auth.signedIn) {
+      if (READY && ENDPOINT && auth.checked && auth.required && !auth.signedIn && !hostAccountIsSignedIn()) {
         // keep their words in the box \u2014 sign in, then hit send again
         showSigninCard();
         return;

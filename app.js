@@ -455,6 +455,9 @@
             }
           }
           window.__user = _u;
+          if (typeof window.dispatchEvent === 'function' && typeof window.CustomEvent === 'function') {
+            window.dispatchEvent(new CustomEvent('rhobear:auth', { detail: { signedIn: true } }));
+          }
           updateAvatar(_u);
           applyAssistantIdentity();
           boot();
