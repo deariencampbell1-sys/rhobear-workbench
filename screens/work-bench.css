@@ -290,6 +290,7 @@
   overflow: hidden;
 }
 .builds-workstation > .page-head { flex: 0 0 auto; }
+.builds-workstation [hidden] { display: none !important; }
 .builds-work__eyebrow { color: var(--hub-accent); font-size: .7rem; font-weight: 800; letter-spacing: .14em; }
 .builds-work__layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .builds-work__rail { display: flex; flex-direction: column; gap: 12px; min-height: 0; padding: 16px; border: 1px solid var(--hub-border); border-radius: 14px; background: var(--hub-glass-bg); }
