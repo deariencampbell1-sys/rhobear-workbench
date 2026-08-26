@@ -28,7 +28,7 @@
     screen.classList.add('builds-workstation');
     initialHead.innerHTML = '<div class="builds-work__eyebrow">BUILDS</div>' +
       '<h1>New build stream</h1><p class="sub">Every turn stays in the stream rail. Thinking, tools, and the final answer stay together.</p>';
-    initialPrompt.innerHTML = '<div class="builds-work__stage-empty"><div class="builds-work__stage-orb">R</div>' +
+    initialPrompt.innerHTML = '<div class="builds-work__stage-empty"><div class="builds-work__stage-orb" data-builds-stage-orb></div>' +
       '<h2>What are we building?</h2><p class="muted">Ask the Builds crew. Your viewer opens beside the active stream when a build produces something to inspect.</p>' +
       '<div class="builds-work__examples"><button type="button" data-build-example="inspect the current build queue">Try “inspect the current build queue”</button>' +
       '<button type="button" data-build-example="compare Peak and Summit">Try “compare Peak and Summit”</button></div></div>';
@@ -74,7 +74,29 @@
     var entryFocus = initialOptions.querySelector('.s-work__focus-row');
     var entryControls = initialOptions.querySelector('.builds-work__composer-controls');
     if (entryFocus && entryControls) entryControls.appendChild(entryFocus);
-    stage.innerHTML = '<div class="builds-work__stage-placeholder"><div class="builds-work__stage-orb">R</div><h2>What are we building?</h2><p class="muted">Ask the Builds crew. Thinking, tools, and the final answer stay together in the stream.</p><div class="builds-work__examples"><button type="button" data-build-example="inspect the current build queue">Try “inspect the current build queue”</button><button type="button" data-build-example="compare Peak and Summit">Try “compare Peak and Summit”</button></div></div>';
+    stage.innerHTML = '<div class="builds-work__stage-placeholder"><div class="builds-work__stage-orb" data-builds-stage-orb></div><h2>What are we building?</h2><p class="muted">Ask the Builds crew. Thinking, tools, and the final answer stay together in the stream.</p><div class="builds-work__examples"><button type="button" data-build-example="inspect the current build queue">Try “inspect the current build queue”</button><button type="button" data-build-example="compare Peak and Summit">Try “compare Peak and Summit”</button></div></div>';
+    (function mountBuildsStageOrb() {
+      var hosts = screen.querySelectorAll('[data-builds-stage-orb]');
+      var tries = 0;
+      function mount() {
+        if (!window.RhoOrb) {
+          if (tries++ < 60) window.setTimeout(mount, 120);
+          return;
+        }
+        window.RhoOrbs = window.RhoOrbs || [];
+        hosts.forEach(function (host) {
+          if (host.__rhoStage) return;
+          host.__rhoStage = true;
+          var canvas = document.createElement('canvas');
+          canvas.setAttribute('aria-hidden', 'true');
+          canvas.style.width = '100%';
+          canvas.style.height = '100%';
+          host.appendChild(canvas);
+          window.RhoOrbs.push(window.RhoOrb(canvas, 'builds'));
+        });
+      }
+      mount();
+    }());
     var examples = screen.querySelectorAll('[data-build-example]');
     examples.forEach(function (button) { button.addEventListener('click', function () { task.value = button.getAttribute('data-build-example') || ''; task.dispatchEvent(new Event('input', { bubbles: true })); task.focus(); }); });
     var viewerButton = screen.querySelector('[data-open-build-viewer]');
