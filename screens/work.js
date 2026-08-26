@@ -351,7 +351,7 @@
       '</div>' +
       '<div class="s-work__pages" data-work-pages></div>');
 
-    var optionsRow = screen.querySelector('.s-work__options');
+    var optionsRow = screen.querySelector('.s-work__options') || screen.querySelector('.builds-work__entry-composer');
     if (optionsRow && optionsRow.parentNode) optionsRow.parentNode.insertBefore(bench, optionsRow.nextSibling);
     else screen.appendChild(bench);
     var entryWorkarea = screen.querySelector('.builds-work__workarea');
