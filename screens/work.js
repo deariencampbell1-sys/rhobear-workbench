@@ -39,7 +39,7 @@
       '<span class="muted">Model</span><button class="s-work__select builds-work__model-select" type="button" aria-label="Choose model"><span class="s-work__model-label">✦ Summit</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" fill="none"/></svg></button>' +
       '<span class="muted">Specialist</span><button class="chip s-work__assign" type="button" aria-label="Assign to specialist"><span class="s-work__assign-label">Coder</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" fill="none"/></svg></button>' +
       '<button class="chip" type="button" data-open-sheet aria-label="Open spreadsheet">Spreadsheet</button><input type="file" data-sheet-file-input accept=".xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv" hidden /></div>' +
-      '<div class="builds-work__composer-actions"><span class="s-work__estimate mono muted">≈ 0 tokens</span><button class="hub-btn-primary" type="button" data-action="run-task">Send <span aria-hidden="true">→</span></button></div></div>' +
+      '<div class="builds-work__composer-actions"><span class="s-work__estimate mono muted">≈ 0 tokens</span><button class="builds-work__voice" type="button" data-builds-voice aria-label="Open voice mode" title="Voice mode"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button><button class="hub-btn-primary" type="button" data-action="run-task">Send <span aria-hidden="true">→</span></button></div></div>' +
       '<div class="s-work__focus-row" role="group" aria-label="Autonomy"><button class="hub-filter-pill active" type="button">Auto</button><button class="hub-filter-pill" type="button">Suggest</button><button class="hub-filter-pill" type="button">Act</button></div>';
     initialOptions.className = 'builds-work__entry-composer';
     var task = document.createElement('textarea');
@@ -56,8 +56,8 @@
       '<ul class="s-work__list builds-work__stream-list" aria-label="Saved build streams"></ul>' +
       '<div class="builds-work__rail-foot">Session history is live</div>';
     var station = document.createElement('main'); station.className = 'builds-work__station';
-    station.innerHTML = '<div class="builds-work__station-head"><div><strong>STREAM + VIEWER</strong><p class="muted">Chat with the build while you inspect and annotate its live work.</p></div>' +
-      '<div class="builds-work__station-actions"><button class="chip" type="button" data-open-build-files>Files</button><button class="chip" type="button" data-toggle-build-tools aria-expanded="false">Tools</button><button class="chip" type="button" data-open-build-viewer>Focus viewer</button>' +
+    station.innerHTML = '<div class="builds-work__station-head"><div><strong>BUILD STREAM</strong><p class="muted">A persistent conversation for the build. Open the viewer when you need it.</p></div>' +
+      '<div class="builds-work__station-actions"><button class="chip" type="button" data-open-build-files>Files</button><button class="chip" type="button" data-toggle-build-tools aria-expanded="false">Tools</button><button class="chip" type="button" data-open-build-viewer aria-expanded="false">Open viewer</button>' +
       '<div class="builds-work__utility-panel" data-build-tools hidden><button class="chip" type="button" data-nav-target="mcps">GitHub MCP</button><button class="chip" type="button" data-nav-target="vault">Vault</button></div></div></div>';
     var stage = document.createElement('div'); stage.className = 'builds-work__stage';
     var workarea = document.createElement('div'); workarea.className = 'builds-work__workarea';
@@ -70,6 +70,10 @@
     screen.appendChild(initialHead); screen.appendChild(layout);
     layout.appendChild(rail); layout.appendChild(station);
     station.appendChild(workarea); workarea.appendChild(stage); workarea.appendChild(viewer); station.appendChild(initialOptions);
+    viewer.hidden = true;
+    var entryFocus = initialOptions.querySelector('.s-work__focus-row');
+    var entryControls = initialOptions.querySelector('.builds-work__composer-controls');
+    if (entryFocus && entryControls) entryControls.appendChild(entryFocus);
     stage.innerHTML = '<div class="builds-work__stage-placeholder"><div class="builds-work__stage-orb">R</div><h2>What are we building?</h2><p class="muted">Ask the Builds crew. Thinking, tools, and the final answer stay together in the stream.</p><div class="builds-work__examples"><button type="button" data-build-example="inspect the current build queue">Try “inspect the current build queue”</button><button type="button" data-build-example="compare Peak and Summit">Try “compare Peak and Summit”</button></div></div>';
     var examples = screen.querySelectorAll('[data-build-example]');
     examples.forEach(function (button) { button.addEventListener('click', function () { task.value = button.getAttribute('data-build-example') || ''; task.dispatchEvent(new Event('input', { bubbles: true })); task.focus(); }); });
@@ -112,7 +116,40 @@
     viewerFrame.addEventListener('load', function () { if (viewerFrame.src !== 'about:blank') viewerStatus.textContent = 'Page loaded · annotate the visible work'; });
     viewer.querySelector('[data-viewer-open]').addEventListener('click', openViewer);
     viewerUrl.addEventListener('keydown', function (event) { if (event.key === 'Enter') { event.preventDefault(); openViewer(); } });
-    if (viewerButton) viewerButton.addEventListener('click', function () { viewerUrl.focus(); viewer.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+    function setEntryViewerOpen(on) {
+      viewer.hidden = !on;
+      workarea.classList.toggle('is-viewer-open', on);
+      viewerButton.setAttribute('aria-expanded', String(on));
+      viewerButton.textContent = on ? 'Hide viewer' : 'Open viewer';
+      if (on) { viewerUrl.focus(); viewer.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    }
+    function setActivePageViewer(open) {
+      var active = typeof activeTab === 'function' ? activeTab() : null;
+      if (!active || !active.els || !active.els.page) return false;
+      active.els.page.classList.toggle('is-viewer-open', open);
+      viewerButton.setAttribute('aria-expanded', String(open));
+      viewerButton.textContent = open ? 'Hide viewer' : 'Open viewer';
+      return true;
+    }
+    if (viewerButton) viewerButton.addEventListener('click', function () {
+      var active = typeof activeTab === 'function' ? activeTab() : null;
+      var pageOpen = !!(active && active.els && active.els.page && active.els.page.classList.contains('is-viewer-open'));
+      if (!setActivePageViewer(!pageOpen)) setEntryViewerOpen(viewer.hidden);
+    });
+    var entryVoice = screen.querySelector('[data-builds-voice]');
+    function clickNearestMic(field) {
+      var fr = field && field.getBoundingClientRect();
+      if (!fr) return;
+      var best = null; var score = Infinity;
+      document.querySelectorAll('button.rb-mic').forEach(function (mic) {
+        var mr = mic.getBoundingClientRect(); if (!mr.width || !mr.height) return;
+        var dx = (mr.left + mr.width / 2) - (fr.right - 18); var dy = (mr.top + mr.height / 2) - (fr.top + 18);
+        var next = dx * dx + dy * dy; if (next < score) { score = next; best = mic; }
+      });
+      if (best) best.click();
+      else if (field) field.focus();
+    }
+    if (entryVoice) entryVoice.addEventListener('click', function () { clickNearestMic(task); });
     annotateButton.addEventListener('click', function () {
       var on = viewer.classList.toggle('is-annotating');
       annotateButton.classList.toggle('is-active', on);
@@ -312,6 +349,8 @@
     var optionsRow = screen.querySelector('.s-work__options');
     if (optionsRow && optionsRow.parentNode) optionsRow.parentNode.insertBefore(bench, optionsRow.nextSibling);
     else screen.appendChild(bench);
+    var entryWorkarea = screen.querySelector('.builds-work__workarea');
+    if (entryWorkarea) entryWorkarea.hidden = true;
     var entryStage = screen.querySelector('.builds-work__stage');
     var entryPrompt = screen.querySelector('.builds-work__entry-stage');
     if (entryStage) entryStage.hidden = true;
@@ -445,8 +484,9 @@
               '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
             '</button>' +
           '</div>' +
-          '<div class="s-work__composer-inputrow">' +
+      '<div class="s-work__composer-inputrow">' +
             '<textarea class="s-work__composer-input" data-composer-input rows="1" placeholder="Reply, or add to the task…"></textarea>' +
+            '<button class="builds-work__voice" type="button" data-action="voice" aria-label="Open voice mode" title="Voice mode"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>' +
             '<button class="hub-btn-primary s-work__composer-send" type="button" data-composer-send aria-label="Send">' +
               '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M3 8H13M9 4L13 8L9 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' +
             '</button>' +
@@ -509,6 +549,8 @@
       sendMessage(tab, v);
     }
     tab.els.send.addEventListener('click', submit);
+    var voiceBtn = p.querySelector('[data-action="voice"]');
+    if (voiceBtn) voiceBtn.addEventListener('click', function () { clickNearestMicForPage(tab.els.composer); });
     tab.els.composer.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
     });
@@ -516,6 +558,17 @@
       var c = t.els.composer; c.style.height = 'auto'; c.style.height = Math.min(c.scrollHeight, 160) + 'px';
     }
     tab.els.composer.addEventListener('input', function () { autoGrow(tab); updateContextMeter(tab); });
+    function clickNearestMicForPage(field) {
+      var fr = field && field.getBoundingClientRect();
+      if (!fr) return field && field.focus();
+      var best = null; var score = Infinity;
+      document.querySelectorAll('button.rb-mic').forEach(function (mic) {
+        var mr = mic.getBoundingClientRect(); if (!mr.width || !mr.height) return;
+        var dx = (mr.left + mr.width / 2) - (fr.right - 18); var dy = (mr.top + mr.height / 2) - (fr.top + 18);
+        var next = dx * dx + dy * dy; if (next < score) { score = next; best = mic; }
+      });
+      if (best) best.click(); else field.focus();
+    }
 
     // close (chat head)
     var closeHead = p.querySelector('[data-action="close-tab"]');
@@ -636,6 +689,15 @@
     if (_active === id) {
       _active = _tabs.length ? _tabs[Math.max(0, idx - 1)].id : null;
       if (_active) activateTab(_active);
+    }
+    if (!_tabs.length) {
+      var entryWorkarea = screen.querySelector('.builds-work__workarea');
+      var entryOptions = screen.querySelector('.builds-work__entry-composer');
+      if (entryWorkarea) entryWorkarea.hidden = false;
+      if (entryOptions) entryOptions.hidden = false;
+      if (viewer && typeof viewer.hidden !== 'undefined') viewer.hidden = true;
+      if (workarea) workarea.classList.remove('is-viewer-open');
+      if (viewerButton) { viewerButton.setAttribute('aria-expanded', 'false'); viewerButton.textContent = 'Open viewer'; }
     }
     renderEmptyState();
   }
