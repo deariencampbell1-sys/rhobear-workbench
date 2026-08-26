@@ -223,16 +223,11 @@
   }
   function boot() {
     scan(document);
-    var mo = new MutationObserver(function (muts) {
-      for (var i = 0; i < muts.length; i++) {
-        var m = muts[i];
-        for (var j = 0; j < m.addedNodes.length; j++) {
-          var n = m.addedNodes[j];
-          if (n.nodeType !== 1) continue;
-          if (n.matches && n.matches('textarea, input, [contenteditable]')) attach(n);
-          if (n.querySelectorAll) scan(n);
-        }
-      }
+    var queued = false;
+    var mo = new MutationObserver(function () {
+      if (queued) return;
+      queued = true;
+      setTimeout(function () { queued = false; scan(document); }, 0);
     });
     mo.observe(document.documentElement, { childList: true, subtree: true });
   }

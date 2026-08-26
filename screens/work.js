@@ -56,19 +56,81 @@
       '<ul class="s-work__list builds-work__stream-list" aria-label="Saved build streams"></ul>' +
       '<div class="builds-work__rail-foot">Session history is live</div>';
     var station = document.createElement('main'); station.className = 'builds-work__station';
-    station.innerHTML = '<div class="builds-work__station-head"><div><strong>MODEL ROUTE</strong><p class="muted">R3 tier routes stay selectable across the three local harnesses.</p></div>' +
-      '<div class="builds-work__station-actions"><button class="chip" type="button">Files</button><button class="chip" type="button">GitHub MCP</button><button class="chip" type="button">Vault</button><button class="chip" type="button" data-open-build-viewer>Open viewer</button></div></div>' +
-      '<div class="builds-work__route-cards"><button type="button" class="builds-work__route-card" data-route-harness="claude-sdk"><b>Claude SDK</b><span>R3 · speedy</span><em>Ready</em></button><button type="button" class="builds-work__route-card is-selected" data-route-harness="hermes"><b>Hermes</b><span>R3 · speedy</span><em>Ready</em></button><button type="button" class="builds-work__route-card" data-route-harness="pi"><b>Pi.dev</b><span>R3 · speedy</span><em>Ready</em></button></div>';
+    station.innerHTML = '<div class="builds-work__station-head"><div><strong>STREAM + VIEWER</strong><p class="muted">Chat with the build while you inspect and annotate its live work.</p></div>' +
+      '<div class="builds-work__station-actions"><button class="chip" type="button" data-open-build-files>Files</button><button class="chip" type="button" data-toggle-build-tools aria-expanded="false">Tools</button><button class="chip" type="button" data-open-build-viewer>Focus viewer</button>' +
+      '<div class="builds-work__utility-panel" data-build-tools hidden><button class="chip" type="button" data-nav-target="mcps">GitHub MCP</button><button class="chip" type="button" data-nav-target="vault">Vault</button></div></div></div>';
     var stage = document.createElement('div'); stage.className = 'builds-work__stage';
+    var workarea = document.createElement('div'); workarea.className = 'builds-work__workarea';
+    var viewer = document.createElement('section'); viewer.className = 'builds-work__viewer'; viewer.setAttribute('aria-label', 'Web viewer and annotations'); viewer.setAttribute('data-rb-no-dictation', '');
+    viewer.innerHTML = '<div class="builds-work__viewer-head"><div><strong>WEB VIEWER</strong><span class="muted">Inspect without leaving Builds</span></div><button class="chip" type="button" data-viewer-annotate>Annotate</button></div>' +
+      '<div class="builds-work__viewer-toolbar"><input type="url" data-viewer-url placeholder="https://example.com" aria-label="Web viewer URL"/><button class="hub-btn-ghost" type="button" data-viewer-open>Open</button></div>' +
+      '<div class="builds-work__viewer-frame-wrap"><iframe data-viewer-frame title="Web viewer" src="about:blank" referrerpolicy="no-referrer"></iframe><canvas data-viewer-canvas aria-hidden="true"></canvas><div class="builds-work__viewer-empty" data-viewer-empty><strong>Viewer ready</strong><span>Paste a URL to inspect a page beside the build stream.</span></div></div>' +
+      '<div class="builds-work__viewer-foot"><span class="muted" data-viewer-status>Ready for a page</span><button class="chip" type="button" data-viewer-clear>Clear marks</button><button class="chip" type="button" data-viewer-context>Add page to brief</button></div>';
     screen.innerHTML = '';
     screen.appendChild(initialHead); screen.appendChild(layout);
     layout.appendChild(rail); layout.appendChild(station);
-    station.appendChild(stage); station.appendChild(initialOptions);
+    station.appendChild(workarea); workarea.appendChild(stage); workarea.appendChild(viewer); station.appendChild(initialOptions);
     stage.innerHTML = '<div class="builds-work__stage-placeholder"><div class="builds-work__stage-orb">R</div><h2>What are we building?</h2><p class="muted">Ask the Builds crew. Thinking, tools, and the final answer stay together in the stream.</p><div class="builds-work__examples"><button type="button" data-build-example="inspect the current build queue">Try “inspect the current build queue”</button><button type="button" data-build-example="compare Peak and Summit">Try “compare Peak and Summit”</button></div></div>';
     var examples = screen.querySelectorAll('[data-build-example]');
     examples.forEach(function (button) { button.addEventListener('click', function () { task.value = button.getAttribute('data-build-example') || ''; task.dispatchEvent(new Event('input', { bubbles: true })); task.focus(); }); });
     var viewerButton = screen.querySelector('[data-open-build-viewer]');
-    if (viewerButton) viewerButton.addEventListener('click', function () { var viewer = document.querySelector('[data-nav-item="viewer"]'); if (viewer) viewer.click(); });
+    var toolsToggle = screen.querySelector('[data-toggle-build-tools]');
+    var toolsPanel = screen.querySelector('[data-build-tools]');
+    function navigateTo(name) { var nav = document.querySelector('[data-nav-item="' + name + '"]'); if (nav) nav.click(); }
+    if (toolsToggle && toolsPanel) toolsToggle.addEventListener('click', function () {
+      var open = toolsPanel.hidden;
+      toolsPanel.hidden = !open;
+      toolsToggle.setAttribute('aria-expanded', String(open));
+    });
+    var filesButton = screen.querySelector('[data-open-build-files]');
+    if (filesButton) filesButton.addEventListener('click', function () { navigateTo('files'); });
+    screen.querySelectorAll('[data-nav-target]').forEach(function (button) { button.addEventListener('click', function () { navigateTo(button.getAttribute('data-nav-target')); }); });
+    var viewerUrl = viewer.querySelector('[data-viewer-url]');
+    var viewerFrame = viewer.querySelector('[data-viewer-frame]');
+    var viewerCanvas = viewer.querySelector('[data-viewer-canvas]');
+    var viewerEmpty = viewer.querySelector('[data-viewer-empty]');
+    var viewerStatus = viewer.querySelector('[data-viewer-status]');
+    var annotateButton = viewer.querySelector('[data-viewer-annotate]');
+    var drawing = false;
+    function resizeViewerCanvas() {
+      var rect = viewerCanvas.getBoundingClientRect();
+      var ratio = window.devicePixelRatio || 1;
+      viewerCanvas.width = Math.max(1, Math.round(rect.width * ratio));
+      viewerCanvas.height = Math.max(1, Math.round(rect.height * ratio));
+      viewerCanvas.getContext('2d').setTransform(ratio, 0, 0, ratio, 0, 0);
+    }
+    function viewerPoint(event) { var r = viewerCanvas.getBoundingClientRect(); return { x: event.clientX - r.left, y: event.clientY - r.top }; }
+    function openViewer() {
+      var value = (viewerUrl.value || '').trim();
+      if (!value) { viewerUrl.focus(); return; }
+      if (!/^https?:\/\//i.test(value)) value = 'https://' + value;
+      viewerUrl.value = value;
+      viewerFrame.src = value;
+      viewerEmpty.hidden = true;
+      viewerStatus.textContent = 'Opening ' + value.replace(/^https?:\/\//i, '').slice(0, 42);
+    }
+    viewerFrame.addEventListener('load', function () { if (viewerFrame.src !== 'about:blank') viewerStatus.textContent = 'Page loaded · annotate the visible work'; });
+    viewer.querySelector('[data-viewer-open]').addEventListener('click', openViewer);
+    viewerUrl.addEventListener('keydown', function (event) { if (event.key === 'Enter') { event.preventDefault(); openViewer(); } });
+    if (viewerButton) viewerButton.addEventListener('click', function () { viewerUrl.focus(); viewer.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+    annotateButton.addEventListener('click', function () {
+      var on = viewer.classList.toggle('is-annotating');
+      annotateButton.classList.toggle('is-active', on);
+      viewerCanvas.hidden = !on;
+      if (on) { resizeViewerCanvas(); viewerStatus.textContent = 'Annotating · draw over the page'; }
+    });
+    viewer.querySelector('[data-viewer-clear]').addEventListener('click', function () { var ctx = viewerCanvas.getContext('2d'); ctx.clearRect(0, 0, viewerCanvas.width, viewerCanvas.height); });
+    viewerCanvas.addEventListener('pointerdown', function (event) { if (!viewer.classList.contains('is-annotating')) return; drawing = true; viewerCanvas.setPointerCapture(event.pointerId); var p = viewerPoint(event); var ctx = viewerCanvas.getContext('2d'); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+    viewerCanvas.addEventListener('pointermove', function (event) { if (!drawing) return; var p = viewerPoint(event); var ctx = viewerCanvas.getContext('2d'); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#00E5CC'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.stroke(); });
+    viewerCanvas.addEventListener('pointerup', function () { drawing = false; });
+    window.addEventListener('resize', resizeViewerCanvas);
+    viewer.querySelector('[data-viewer-context]').addEventListener('click', function () {
+      var value = (viewerUrl.value || '').trim();
+      if (!value) { viewerUrl.focus(); return; }
+      task.value = (task.value ? task.value + '\n\n' : '') + 'Inspect the page open in the Builds viewer: ' + value;
+      task.dispatchEvent(new Event('input', { bubbles: true })); task.focus();
+      viewerStatus.textContent = 'Page context added to the build brief';
+    });
   }
 
   /* ── Helpers ────────────────────────────────────────────────────────── */
