@@ -30,6 +30,12 @@
     });
     // topbar title
     var tt = $('#topbarTitle'); if (tt) tt.textContent = TITLES[name] || name;
+    // Keep direct links and hard refreshes on the surface the user actually
+    // opened. Previously the screen changed in-place but the hash stayed at
+    // #home, and boot then forced Home again on every refresh.
+    if (window.history && window.history.replaceState && location.hash !== '#' + name) {
+      window.history.replaceState(null, '', '#' + name);
+    }
     // scroll to top
     var sc = $('#screenScroll');
     if (sc) sc.scrollTop = 0;
@@ -425,7 +431,9 @@
       initMobile();
       initWalkthrough();
       initGlobal();
-      activateScreen('home', document);
+      var requested = (location.hash || '').replace(/^#/, '').split('?')[0] || 'home';
+      if (!document.querySelector('.screen[data-screen="' + requested + '"]')) requested = 'home';
+      activateScreen(requested, document);
     }
 
     // If api.js is loaded and HubAPI exists, check auth first
