@@ -23,14 +23,22 @@
   var HARNESSES = [
     {
       id: 'hermes', label: 'Hermes', glyph: '✦', tagline: 'R3 · native agent harness',
+      // Builds is the control plane. If this adapter cannot start a turn,
+      // retry the same persistent session through the next adapter before any
+      // assistant/tool output exists. The order is visible in the Builds rail.
+      fallbacks: ['pi', 'claude-sdk'],
       models: [{ model: 'summit', label: 'Summit', glyph: '✦', note: 'R3 · speedy', aliases: ['inclusionai/ling-2.6-flash', 'ling-2.6-flash'] }],
     },
     {
       id: 'claude-sdk', label: 'Claude SDK', glyph: '◈', tagline: 'R3 · Claude tool protocol',
+      directUrl: 'https://claude.ai/', directLabel: 'Open Claude',
+      fallbacks: ['pi', 'hermes'],
       models: [{ model: 'summit', label: 'Summit', glyph: '✦', note: 'R3 · speedy', aliases: ['inclusionai/ling-2.6-flash', 'ling-2.6-flash'] }],
     },
     {
       id: 'pi', label: 'Pi.dev', glyph: 'π', tagline: 'R3 · Pi developer harness',
+      directUrl: 'https://pi.dev/', directLabel: 'Open Pi.dev',
+      fallbacks: ['hermes', 'claude-sdk'],
       models: [{ model: 'summit', label: 'Summit', glyph: '✦', note: 'R3 · speedy', aliases: ['inclusionai/ling-2.6-flash', 'ling-2.6-flash'] }],
     },
   ];
@@ -65,6 +73,31 @@
     if (hit) return hit;
     hit = all.filter(function (e) { return e.model === model; })[0];
     return hit || all.filter(function (e) { return e.model === DEFAULT.model; })[0];
+  }
+
+  function harnessById(id) {
+    return HARNESSES.filter(function (h) { return h.id === id; })[0] || HARNESSES[0];
+  }
+
+  /* The central UX owns the route. Adapters may fail independently, but the
+     session, auth, transcript, and operator controls stay in Builds. */
+  function fallbackChain(harness) {
+    var first = harnessById(harness);
+    var ids = [first.id].concat(first.fallbacks || []);
+    var seen = {};
+    return ids.filter(function (id) {
+      if (seen[id] || !harnessById(id)) return false;
+      seen[id] = true;
+      return true;
+    });
+  }
+
+  function directUrl(harness) {
+    return harnessById(harness).directUrl || '';
+  }
+
+  function directLabel(harness) {
+    return harnessById(harness).directLabel || 'Already in Builds';
   }
 
   /* ── Live catalog (what Hermes actually surfaces) ─────────────────────
@@ -236,6 +269,10 @@
     readSelection: readSel,
     writeSelection: writeSel,
     findModel: findModel,
+    harnessById: harnessById,
+    fallbackChain: fallbackChain,
+    directUrl: directUrl,
+    directLabel: directLabel,
     chipLabel: chipLabel,
     liveIds: liveIds,
     openPicker: openPicker,

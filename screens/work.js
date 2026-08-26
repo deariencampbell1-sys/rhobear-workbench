@@ -58,7 +58,12 @@
     var station = document.createElement('main'); station.className = 'builds-work__station';
     station.innerHTML = '<div class="builds-work__station-head"><div><strong>BUILD STREAM</strong><p class="muted">A persistent conversation for the build. Open the viewer when you need it.</p></div>' +
       '<div class="builds-work__station-actions"><button class="chip" type="button" data-open-build-files>Files</button><button class="chip" type="button" data-toggle-build-tools aria-expanded="false">Tools</button><button class="chip" type="button" data-open-build-viewer aria-expanded="false">Open viewer</button>' +
-      '<div class="builds-work__utility-panel" data-build-tools hidden><button class="chip" type="button" data-nav-target="mcps">GitHub MCP</button><button class="chip" type="button" data-nav-target="vault">Vault</button></div></div></div>';
+      '<div class="builds-work__utility-panel" data-build-tools hidden><button class="chip" type="button" data-nav-target="mcps">GitHub MCP</button><button class="chip" type="button" data-nav-target="vault">Vault</button></div></div></div>' +
+      '<div class="builds-work__routebar" data-builds-routebar>' +
+        '<div class="builds-work__route-copy"><span class="builds-work__eyebrow">ROUTING</span><strong data-builds-route-summary>Hermes</strong><span class="muted" data-builds-route-note>Fallback before first output · session stays in Builds</span></div>' +
+        '<div class="builds-work__route-chain" data-builds-route-chain aria-label="Harness fallback chain"></div>' +
+        '<button class="chip" type="button" data-route-open>Open preferred</button>' +
+      '</div>';
     var stage = document.createElement('div'); stage.className = 'builds-work__stage';
     var workarea = document.createElement('div'); workarea.className = 'builds-work__workarea';
     var viewer = document.createElement('section'); viewer.className = 'builds-work__viewer'; viewer.setAttribute('aria-label', 'Web viewer and annotations'); viewer.setAttribute('data-rb-no-dictation', '');
@@ -289,6 +294,47 @@
       if (dot) p.appendChild(dot);
       p.appendChild(document.createTextNode(lbl));
     });
+    paintRoute(sel);
+  }
+
+  function paintRoute(sel) {
+    if (!window.HubCatalog) return;
+    sel = sel || HubCatalog.readSelection();
+    var chain = HubCatalog.fallbackChain ? HubCatalog.fallbackChain(sel.harness) : [sel.harness];
+    var chainEl = screen.querySelector('[data-builds-route-chain]');
+    var summaryEl = screen.querySelector('[data-builds-route-summary]');
+    var openBtn = screen.querySelector('[data-route-open]');
+    var labels = chain.map(function (id) {
+      var h = HubCatalog.harnessById ? HubCatalog.harnessById(id) : null;
+      return h ? h.label : id;
+    });
+    if (summaryEl) summaryEl.textContent = labels.join('  →  ');
+    if (chainEl) {
+      chainEl.innerHTML = chain.map(function (id, index) {
+        var h = HubCatalog.harnessById ? HubCatalog.harnessById(id) : null;
+        var label = h ? h.label : id;
+        return (index ? '<span class="builds-work__route-arrow" aria-hidden="true">→</span>' : '') +
+          '<button class="builds-work__route-pill' + (index === 0 ? ' is-preferred' : '') + '" type="button" data-route-harness="' + esc(id) + '" title="Use ' + esc(label) + ' as the preferred adapter">' + esc(label) + '</button>';
+      }).join('');
+      chainEl.querySelectorAll('[data-route-harness]').forEach(function (card) {
+        card.addEventListener('click', function () {
+          var next = { harness: card.getAttribute('data-route-harness'), model: sel.model };
+          HubCatalog.writeSelection(next);
+          paintSelection(next);
+          flashToast('Preferred adapter: ' + card.textContent);
+        });
+      });
+    }
+    if (openBtn) {
+      var url = HubCatalog.directUrl ? HubCatalog.directUrl(sel.harness) : '';
+      openBtn.textContent = HubCatalog.directLabel ? HubCatalog.directLabel(sel.harness) : 'Open preferred';
+      openBtn.disabled = !url;
+      openBtn.title = url ? 'Open the preferred harness in a new tab' : 'This adapter is running inside Builds';
+      openBtn.onclick = function () {
+        if (!url) { flashToast('This adapter is already running inside Builds'); return; }
+        window.open(url, '_blank', 'noopener');
+      };
+    }
   }
 
   if ((harnessBtn || modelBtn) && window.HubCatalog) {
@@ -298,14 +344,6 @@
       button.addEventListener('click', function (e) {
         e.stopPropagation();
         HubCatalog.openPicker(button, function (sel) { paintSelection(sel); });
-      });
-    });
-    screen.querySelectorAll('[data-route-harness]').forEach(function (card) {
-      card.addEventListener('click', function () {
-        var sel = { harness: card.getAttribute('data-route-harness'), model: currentModelId() };
-        HubCatalog.writeSelection(sel);
-        paintSelection(sel);
-        screen.querySelectorAll('[data-route-harness]').forEach(function (other) { other.classList.toggle('is-selected', other === card); });
       });
     });
   }
@@ -430,6 +468,7 @@
       sessionId: opts.sessionId || null,
       harness: opts.harness || (window.HubCatalog && HubCatalog.readSelection ? HubCatalog.readSelection().harness : 'hermes'),
       model: opts.model || currentModelId(),
+      fallbacks: opts.fallbacks || (window.HubCatalog && HubCatalog.fallbackChain ? HubCatalog.fallbackChain(opts.harness || (HubCatalog.readSelection ? HubCatalog.readSelection().harness : 'hermes')).slice(1) : []),
       crewIdx: 3,        // "Coder"
       autoIdx: 1,        // "Act"
       attached: null,    // { name, size } when a non-sheet file is queued
@@ -467,6 +506,7 @@
     tab.els.crewLabel = page.querySelector('[data-crew-label]');
     tab.els.autoLabel = page.querySelector('[data-auto-label]');
     tab.els.modelLabel = page.querySelector('[data-model-label]');
+    tab.els.routeLabel = page.querySelector('[data-tab-route]');
     tab.els.ctxBar = page.querySelector('[data-ctx-bar]');
     tab.els.ctxNum = page.querySelector('[data-ctx-num]');
     tab.els.attachChip = page.querySelector('[data-attach-chip]');
@@ -498,10 +538,11 @@
     var crewLbl = SPECIALISTS[tab.crewIdx];
     var autoLbl = AUTONOMY[tab.autoIdx].label;
     var modelLbl = (window.HubCatalog ? HubCatalog.chipLabel({ harness: tab.harness, model: tab.model }) : tab.model);
+    var routeLbl = routeLabel(tab);
     return '' +
       '<div class="s-work__chat hub-card">' +
         '<div class="s-work__chat-head">' +
-          '<span class="s-work__chat-title" data-chat-title>' + esc(tab.title) + '</span>' +
+          '<div class="s-work__chat-heading"><span class="s-work__chat-title" data-chat-title>' + esc(tab.title) + '</span><span class="builds-work__tab-route" data-tab-route>' + esc(routeLbl) + '</span></div>' +
           '<button class="hub-btn-ghost s-work__chat-close" type="button" data-action="close-tab" aria-label="Close conversation">Close</button>' +
         '</div>' +
         '<div class="s-work__chat-msgs" data-chat-msgs></div>' +
@@ -538,6 +579,14 @@
         '</div>' +
       '</div>' +
       canvasTemplate();
+  }
+
+  function routeLabel(tab) {
+    if (!window.HubCatalog) return tab && tab.harness ? tab.harness : 'Builds';
+    var h = HubCatalog.harnessById ? HubCatalog.harnessById(tab.harness) : null;
+    var name = h ? h.label : tab.harness;
+    var count = tab && tab.fallbacks ? tab.fallbacks.length : 0;
+    return name + (count ? ' · ' + count + ' fallback' + (count === 1 ? '' : 's') : ' · central');
   }
 
   function canvasTemplate() {
@@ -658,7 +707,10 @@
       HubCatalog.openPicker(modelBtn, function (sel) {
         tab.harness = sel.harness;
         tab.model = sel.model;
+        tab.fallbacks = HubCatalog.fallbackChain ? HubCatalog.fallbackChain(sel.harness).slice(1) : [];
         if (tab.els.modelLabel) tab.els.modelLabel.textContent = HubCatalog.chipLabel(sel);
+        if (tab.els.routeLabel) tab.els.routeLabel.textContent = routeLabel(tab);
+        paintRoute(sel);
       });
     });
 
@@ -711,6 +763,7 @@
       if (on) loadPreview(t);
     });
     var active = activeTab();
+    if (active) paintRoute({ harness: active.harness, model: active.model });
     if (active && active.els.msgs) active.els.msgs.scrollTop = active.els.msgs.scrollHeight;
   }
   function closeTab(id) {
@@ -848,6 +901,22 @@
     tab.els.msgs.insertBefore(t, before);
     tab.els.msgs.scrollTop = tab.els.msgs.scrollHeight;
   }
+  function addRouteRow(tab, data) {
+    if (!data || !tab.els.msgs) return;
+    var h = window.HubCatalog && HubCatalog.harnessById ? HubCatalog.harnessById(data.harness) : null;
+    var label = h ? h.label : data.harness;
+    var text = data.state === 'fallback'
+      ? '↪ Fallback to ' + label
+      : data.state === 'retrying'
+        ? '↻ ' + label + ' unavailable · trying next'
+        : data.state === 'active'
+          ? '● ' + label + ' connected'
+          : '→ Starting ' + label;
+    var row = el('div', 's-work__route-row ' + (data.state === 'retrying' ? 'is-fallback' : ''), esc(text));
+    if (data.reason) row.title = data.reason;
+    tab.els.msgs.appendChild(row);
+    tab.els.msgs.scrollTop = tab.els.msgs.scrollHeight;
+  }
   function setSendDisabled(tab, on) {
     if (tab.els.send) { if (on) tab.els.send.setAttribute('disabled', ''); else tab.els.send.removeAttribute('disabled'); }
   }
@@ -858,6 +927,7 @@
     var lines = [];
     lines.push('Crew specialist: ' + SPECIALISTS[tab.crewIdx] + '.');
     lines.push(AUTONOMY[tab.autoIdx].hint);
+    lines.push('Builds route: preferred ' + routeLabel(tab) + '. Fallback is allowed only before the first tool or assistant output.');
     if (tab.attached) lines.push('A file is attached as context: ' + tab.attached.name + ' (' + tab.attached.size + ' bytes).');
     return lines.join(' ');
   }
@@ -907,8 +977,17 @@
         message: message,
         model: tab.model,
         harness: tab.harness,
+        fallbacks: tab.fallbacks,
+        timeoutMs: 4 * 60 * 60 * 1000,
         system_message: buildSystemMessage(tab),
       }, {
+        onRoute: function (route) {
+          addRouteRow(tab, route);
+          if (route && route.harness) {
+            var h = window.HubCatalog && HubCatalog.harnessById ? HubCatalog.harnessById(route.harness) : null;
+            if (tab.els.routeLabel) tab.els.routeLabel.textContent = (h ? h.label : route.harness) + ' · attempt ' + route.attempt;
+          }
+        },
         onText: function (delta) {
           if (firstDelta) { agent.classList.remove('is-typing'); agent.textContent = ''; firstDelta = false; }
           agent.textContent += delta;
