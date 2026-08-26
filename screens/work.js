@@ -134,7 +134,12 @@
     if (viewerButton) viewerButton.addEventListener('click', function () {
       var active = typeof activeTab === 'function' ? activeTab() : null;
       var pageOpen = !!(active && active.els && active.els.page && active.els.page.classList.contains('is-viewer-open'));
-      if (!setActivePageViewer(!pageOpen)) setEntryViewerOpen(viewer.hidden);
+      if (!setActivePageViewer(!pageOpen)) {
+        var nextOpen = viewer.hidden;
+        setEntryViewerOpen(nextOpen);
+        viewerButton.setAttribute('aria-expanded', String(nextOpen));
+        viewerButton.textContent = nextOpen ? 'Hide viewer' : 'Open viewer';
+      }
     });
     var entryVoice = screen.querySelector('[data-builds-voice]');
     function clickNearestMic(field) {
