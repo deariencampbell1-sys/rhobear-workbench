@@ -201,3 +201,49 @@
 @media (max-width: 820px) {
   .s-home__run-meta { margin-left: 0; }
 }
+
+/* Builds stream launcher -------------------------------------------------- */
+.builds-home {
+  min-height: calc(100vh - 76px);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+/* The shell toggles screens with .is-active. Keep the Builds launcher from
+   overriding the shared .screen display rule when Work (or another surface)
+   is selected; otherwise Home remains in the document flow and Work appears
+   to open on a second, broken page below it. */
+.screen.builds-home:not(.is-active) { display: none; }
+.builds-home__eyebrow { color: var(--hub-accent); font-size: .7rem; font-weight: 800; letter-spacing: .14em; }
+.builds-home__head-row { align-items: flex-end; gap: 18px; }
+.builds-home__head-row h1 { margin: 5px 0 4px; }
+.builds-home__head-actions { flex: 0 0 auto; }
+.builds-home__launcher { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 16px; padding: 22px; }
+.builds-home__launcher-head { align-items: flex-start; gap: 18px; }
+.builds-home__launcher-head h2 { margin: 0 0 4px; }
+.builds-home__mode { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--hub-border); border-radius: 999px; background: var(--hub-glass-bg-2); }
+.builds-home__mode button { border: 0; border-radius: 999px; padding: 7px 12px; background: transparent; color: var(--hub-text-secondary); font: inherit; font-size: .76rem; cursor: pointer; }
+.builds-home__mode button.is-active, .builds-home__mode button:hover { background: var(--hub-accent-dim); color: var(--hub-text-primary); }
+.builds-home__textarea { width: 100%; min-height: 126px; resize: none; border: 1px solid var(--hub-border); border-radius: 14px; background: var(--hub-bg); color: var(--hub-text-primary); padding: 16px; font: inherit; font-size: 1rem; line-height: 1.55; }
+.builds-home__textarea:focus { outline: none; border-color: var(--hub-accent); box-shadow: 0 0 0 3px var(--hub-accent-dim); }
+.builds-home__controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.builds-home__selectors { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .76rem; }
+.builds-home__select { display: inline-flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--hub-border); border-radius: 999px; background: var(--hub-glass-bg-2); color: var(--hub-text-primary); font: inherit; cursor: pointer; }
+.builds-home__select span { color: var(--hub-text-secondary); }
+.builds-home__send { flex: 0 0 auto; }
+.builds-home__route { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--hub-border); }
+.builds-home__route-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.builds-home__route-head strong { display: block; font-size: .72rem; letter-spacing: .1em; }
+.builds-home__route-head .muted { display: block; margin-top: 4px; font-size: .75rem; }
+.builds-home__route-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.builds-home__route-card { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; padding: 12px; border: 1px solid var(--hub-border); border-radius: 12px; background: var(--hub-glass-bg-2); }
+.builds-home__route-card b { font-size: .82rem; }
+.builds-home__route-card span { color: var(--hub-text-secondary); font-size: .72rem; }
+.builds-home__route-card em { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--hub-online); font-size: .7rem; font-style: normal; font-weight: 700; }
+.builds-home__route-card.is-selected { border-color: var(--hub-accent); background: var(--hub-accent-dim); }
+@media (max-width: 820px) {
+  .builds-home { min-height: calc(100vh - 122px); }
+  .builds-home__head-row, .builds-home__launcher-head { align-items: stretch; flex-direction: column; }
+  .builds-home__head-actions { justify-content: flex-start; }
+  .builds-home__route-cards { grid-template-columns: 1fr; }
+}

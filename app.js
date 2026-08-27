@@ -30,6 +30,12 @@
     });
     // topbar title
     var tt = $('#topbarTitle'); if (tt) tt.textContent = TITLES[name] || name;
+    // Keep direct links and hard refreshes on the surface the user actually
+    // opened. Previously the screen changed in-place but the hash stayed at
+    // #home, and boot then forced Home again on every refresh.
+    if (window.history && window.history.replaceState && location.hash !== '#' + name) {
+      window.history.replaceState(null, '', '#' + name);
+    }
     // scroll to top
     var sc = $('#screenScroll');
     if (sc) sc.scrollTop = 0;
@@ -114,7 +120,7 @@
           return '\
           <img class="ink-bear--lg" src="assets/hub-bear.png" alt="" />\
           <div class="wt-step">Step 1 of 5</div>\
-          <div class="wt-title">Welcome to <span class="accent">RHOBEAR Hub</span></div>\
+          <div class="wt-title">Welcome to <span class="accent">RHOBEAR Builds</span></div>\
           <div class="wt-body">Your workbench for running a crew of AI specialists against your own models. Dispatch work, watch runs, keep files, notes and memory — all in one calm place.</div>';
         },
         actions: function () { return primaryNext('Continue'); }
@@ -166,7 +172,7 @@
           <div class="wt-body">Your workspace is ready. Your crew is standing by.</div>';
         },
         actions: function () {
-          return '<button class="hub-btn-primary wt-go" style="flex:1;justify-content:center;">Go to Hub\
+          return '<button class="hub-btn-primary wt-go" style="flex:1;justify-content:center;">Go to Builds\
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>';
         }
       }
@@ -251,26 +257,31 @@
     var orb = $('#railRho'); if (orb) orb.addEventListener('click', toggleRhoWidget);
   }
 
-  // ---- Rho widget (riding the Hub) ----
+  function escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>\"']/g, function (ch) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' })[ch];
+    });
+  }
+
+  // ---- Rho widget (riding Builds) ----
   function toggleRhoWidget() {
     var w = $('#rhoWidget');
     if (w) { w.classList.toggle('open'); return; }
+    var assistant = assistantIdentity();
     w = document.createElement('div');
     w.id = 'rhoWidget';
     w.className = 'hub-rho-widget open';
     w.innerHTML =
       '<div class="hub-rho-widget__head">' +
         '<span class="hub-rho-widget__orb"></span>' +
-        '<span class="hub-rho-widget__names"><b>Rho</b><i>riding the Hub</i></span>' +
+        '<span class="hub-rho-widget__names"><b>' + escapeHtml(assistant) + '</b><i>riding Builds</i></span>' +
         '<button class="hub-rho-widget__close" aria-label="Close">&times;</button>' +
       '</div>' +
       '<div class="hub-rho-widget__msgs" id="rhoMsgs">' +
-        '<div class="hub-rho-bubble hub-rho-bubble--agent">Hey — I’m Rho, riding the Hub. Ask me about your crew, runs, or board.</div>' +
-        '<div class="hub-rho-bubble hub-rho-bubble--user">What’s running right now?</div>' +
-        '<div class="hub-rho-bubble hub-rho-bubble--agent">Two runs live: <b>plans-mcp-w1</b> is verifying, <b>hub-glass-pass</b> just opened a PR. Board has 3 notes waiting on you.</div>' +
+        '<div class="hub-rho-bubble hub-rho-bubble--agent">Hey — I’m ' + escapeHtml(assistant) + ', riding Builds. Ask me to start a real build stream.</div>' +
       '</div>' +
       '<div class="hub-rho-widget__bar">' +
-        '<input type="text" placeholder="Message Rho…" id="rhoWidgetInput">' +
+        '<input type="text" placeholder="Message ' + escapeHtml(assistant) + '…" id="rhoWidgetInput">' +
         '<button id="rhoWidgetSend" aria-label="Send">➤</button>' +
       '</div>';
     document.body.appendChild(w);
@@ -280,11 +291,31 @@
       var v = (inp.value || '').trim(); if (!v) return;
       var u = document.createElement('div'); u.className = 'hub-rho-bubble hub-rho-bubble--user'; u.textContent = v;
       msgs.appendChild(u); inp.value = '';
-      setTimeout(function () {
-        var a = document.createElement('div'); a.className = 'hub-rho-bubble hub-rho-bubble--agent';
-        a.textContent = 'On it — I’ll dig into that and drop the answer on your board.';
-        msgs.appendChild(a); msgs.scrollTop = msgs.scrollHeight;
-      }, 600);
+      var a = document.createElement('div'); a.className = 'hub-rho-bubble hub-rho-bubble--agent';
+      a.textContent = 'Opening a real Builds stream…'; msgs.appendChild(a); msgs.scrollTop = msgs.scrollHeight;
+      if (typeof HubAPI === 'undefined' || !HubAPI.sessions || !HubAPI.chatStream) {
+        a.textContent = 'Sign in to start a real Builds stream.';
+        return;
+      }
+      var selected = window.HubCatalog && HubCatalog.readSelection ? HubCatalog.readSelection() : {};
+      HubAPI.sessions.create(v).then(function (result) {
+        var sid = result && result.data && (result.data.id || result.data.session_id);
+        if (!sid) throw new Error('Could not create a Builds stream');
+        a.textContent = '';
+        HubAPI.chatStream({ sessionId: sid, message: v, harness: selected.harness, model: selected.model }, {
+          onText: function (delta) { a.textContent += delta; msgs.scrollTop = msgs.scrollHeight; },
+          onEvent: function (event, data) {
+            if (event !== 'tool.started' || !data || !data.tool_name || data.tool_name === '_thinking') return;
+            var tool = document.createElement('div');
+            tool.className = 'hub-rho-bubble hub-rho-bubble--tool';
+            tool.textContent = 'Tool · ' + data.tool_name;
+            msgs.insertBefore(tool, a); msgs.scrollTop = msgs.scrollHeight;
+          },
+          onError: function (err) { a.textContent = String(err || 'Build stream failed'); },
+        });
+      }).catch(function (err) {
+        a.textContent = err && err.message ? err.message : 'Could not open the Builds stream';
+      });
       msgs.scrollTop = msgs.scrollHeight;
     }
     $('#rhoWidgetSend', w).addEventListener('click', send);
@@ -322,6 +353,46 @@
     if (emailInput) emailInput.value = user.email || '';
   }
 
+  /* One assistant identity across the product. Builds receives the same
+     account payload as Blueprints, so the companion must never invent a
+     second name or a staff-only identity. */
+  function assistantIdentity() {
+    var user = window.__user || {};
+    var settings = user.settings || user.preferences || {};
+    var sources = [user, settings, settings.assistant, user.workspace, user.account];
+    var keys = ['assistantName', 'assistant_name', 'frontmanName', 'frontman_name', 'rhoName', 'rho_name'];
+    for (var si = 0; si < sources.length; si++) {
+      var source = sources[si];
+      if (!source || typeof source !== 'object') continue;
+      for (var ki = 0; ki < keys.length; ki++) {
+        var value = source[keys[ki]];
+        if (typeof value === 'string' && value.trim()) return value.trim();
+      }
+      if (source.assistant && typeof source.assistant === 'object' &&
+          typeof source.assistant.name === 'string' && source.assistant.name.trim()) {
+        return source.assistant.name.trim();
+      }
+    }
+    try {
+      return localStorage.getItem('rhobear.assistant.name') || 'Rho';
+    } catch (e) {
+      return 'Rho';
+    }
+  }
+
+  function applyAssistantIdentity() {
+    var name = assistantIdentity();
+    var railLabel = document.querySelector('#railRho .rho-label');
+    if (railLabel) railLabel.textContent = 'Ask ' + name;
+    document.querySelectorAll('[data-ask-rho]').forEach(function (button) {
+      var orb = button.querySelector('.mini-orb');
+      button.textContent = '';
+      if (orb) button.appendChild(orb);
+      button.appendChild(document.createTextNode('Ask ' + name));
+      button.setAttribute('aria-label', 'Ask ' + name);
+    });
+  }
+
   // ---- Sign-in state (401 from /api/me) ----
   function showSignIn() {
     var shell = document.getElementById('appShell');
@@ -341,17 +412,14 @@
       <div class="hub-signin">\
         <div class="hub-card hub-card--static hub-signin__card">\
           <img src="assets/hub-bear.png" alt="" class="hub-signin__mark" />\
-          <h1 class="hub-signin__title">RHOBEAR Hub</h1>\
+           <h1 class="hub-signin__title">RHOBEAR Builds</h1>\
           <p class="hub-signin__blurb">\
             Sign in to dispatch your crew, track runs, and manage your workspace.</p>\
-          <a href="/api/auth/google" class="hub-btn-primary hub-signin__cta">\
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" \
-                 stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/>\
-                 <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>\
-            Sign in with Google\
+          <a href="https://blueprints.rhobear.ai/login?next=https%3A%2F%2Fbuilds.rhobear.ai%2F" \
+             class="hub-btn-primary hub-signin__cta">\
+            Sign in with RHOBEAR\
           </a>\
-          <a href="https://auth.rhobear.ai/auth/dev?redirect=https://workbench.rhobear.ai/" \
-             class="hub-signin__alt">Staff / dev sign-in &rarr;</a>\
+          <p class="hub-signin__alt">Magic Link, Google, and GitHub use the same central account across RHOBEAR apps.</p>\
         </div>\
       </div>';
   }
@@ -363,7 +431,9 @@
       initMobile();
       initWalkthrough();
       initGlobal();
-      activateScreen('home', document);
+      var requested = (location.hash || '').replace(/^#/, '').split('?')[0] || 'home';
+      if (!document.querySelector('.screen[data-screen="' + requested + '"]')) requested = 'home';
+      activateScreen(requested, document);
     }
 
     // If api.js is loaded and HubAPI exists, check auth first
@@ -385,7 +455,11 @@
             }
           }
           window.__user = _u;
+          if (typeof window.dispatchEvent === 'function' && typeof window.CustomEvent === 'function') {
+            window.dispatchEvent(new CustomEvent('rhobear:auth', { detail: { signedIn: true } }));
+          }
           updateAvatar(_u);
+          applyAssistantIdentity();
           boot();
         } else if (result.status === 401) {
           showSignIn();

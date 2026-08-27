@@ -39,6 +39,27 @@
       });
   })();
 
+  /* A Notes handoff is deliberately small and one-shot. Blueprints sends the
+     signed-in user to Builds with the source brief; Builds then creates the
+     normal persistent /api/sessions record and streams through the same SSE
+     contract as every other Build. No transcript is fabricated in the URL. */
+  function readBriefHandoff() {
+    try {
+      var raw = new URLSearchParams(window.location.search).get('brief');
+      if (!raw) return null;
+      var bin = atob(raw.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((raw.length + 3) % 4));
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      var parsed = JSON.parse(new TextDecoder().decode(bytes));
+      if (!parsed || !parsed.noteId || !parsed.body) return null;
+      var clean = new URL(window.location.href);
+      clean.searchParams.delete('brief');
+      window.history.replaceState({}, '', clean.pathname + clean.search + clean.hash);
+      return parsed;
+    } catch (e) { return null; }
+  }
+  var _briefHandoff = readBriefHandoff();
+
   /* ── HTTP helpers (same-origin, cookie auth, AbortController timeout) ── */
   function getJSON(url, ms) {
     ms = ms || 8000;
@@ -188,6 +209,7 @@
     settings: {
       save: function (body) { return patchJSON('/api/me', body); },
     },
+    pendingBrief: _briefHandoff,
 
     /* ── Storage (BYO R2 buckets) ──────────────────────────── */
     storage: {
@@ -204,74 +226,166 @@
       var sid = payload.sessionId;
       if (!sid) { if (callbacks.onError) callbacks.onError('no session'); return; }
 
-      var ctl = new AbortController();
-      var to = setTimeout(function () { ctl.abort(); }, 45000);
+      /* Builds is the control plane for the whole harness family. A failed
+         adapter may be retried through the next route, but ONLY while the
+         attempt is still silent. Once a tool or assistant delta is visible,
+         retrying would duplicate work, so the error stays attached to this
+         persistent session instead. */
+      var routeIds = [payload.harness].concat(payload.fallbacks || []).filter(function (id, i, all) {
+        return id && all.indexOf(id) === i;
+      });
+      if (!routeIds.length) routeIds = ['hermes'];
+      var activeCtl = null;
+      var activeTimer = null;
+      var stopped = false;
+      var completed = false;
+      var currentAttempt = 0;
 
-      fetch('/api/sessions/' + encodeURIComponent(sid) + '/chat/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: payload.message,
-          system_message: payload.system_message,
-          model: payload.model,
-        }),
-        credentials: 'include',
-        signal: ctl.signal,
-      }).then(function (res) {
-        clearTimeout(to);
-        if (!res.ok) {
-          return res.json().then(function (edata) {
-            if (edata && (edata.error === 'rate_limit_exceeded' || edata.error === 'insufficient_credits')) {
-              /* "Top up to keep the crew working" used to be the end of it —
-                 the message named an upsell at /billing that no screen owned,
-                 so a spent-out customer was told to pay and given nowhere to
-                 do it. Open the plan panel, where the credit pack now lives. */
-              if (edata.error === 'insufficient_credits' && window.HubBilling) {
-                try { window.HubBilling.openPlan(); } catch (e) { /* non-fatal */ }
-              }
-              if (callbacks.onError) callbacks.onError(HubAPI.formatLimitError(edata), edata);
-              return;
-            }
-            if (callbacks.onError) callbacks.onError(
-              (edata && edata.message) || (edata && edata.error) || 'bad-response',
-              { status: res.status, error: edata && edata.error, message: edata && edata.message }
-            );
-          }).catch(function () {
-            if (callbacks.onError) callbacks.onError('bad-response');
+      function routeNotice(state, index, reason) {
+        if (callbacks.onRoute) {
+          callbacks.onRoute({
+            state: state,
+            harness: routeIds[index],
+            attempt: index + 1,
+            chain: routeIds.slice(),
+            from: index > 0 ? routeIds[index - 1] : null,
+            reason: reason || '',
           });
         }
+      }
 
+      function isHardStop(info) {
+        var status = info && Number(info.status);
+        var error = String((info && info.error) || '').toLowerCase();
+        return status === 401 || status === 402 || status === 403 || status === 429 ||
+          error === 'rate_limit_exceeded' || error === 'insufficient_credits' || error === 'login_required';
+      }
+
+      function canFallback(index, sawOutput, info) {
+        return !stopped && !completed && !sawOutput && index < routeIds.length - 1 && !isHardStop(info);
+      }
+
+      function finishError(message, info) {
+        if (completed || stopped) return;
+        completed = true;
+        if (callbacks.onError) callbacks.onError(message, info || {});
+      }
+
+      function startAttempt(index) {
+        if (stopped || completed) return;
+        currentAttempt = index;
+        var sawOutput = false;
+        var terminal = false;
         var fullText = '';
-        var PASS_EVENTS = {
-          'tool.started': 1, 'tool.completed': 1, 'tool.failed': 1,
-          'tool.progress': 1, 'run.completed': 1,
-        };
+        var route = routeIds[index];
+        activeCtl = new AbortController();
+        routeNotice(index ? 'fallback' : 'starting', index, index ? 'previous adapter could not start' : 'preferred adapter');
+        activeTimer = setTimeout(function () { activeCtl.abort(); }, payload.timeoutMs || (4 * 60 * 60 * 1000));
 
-        return readSSE(res, function (event, data) {
-          if (event === 'assistant.delta' && data.delta) {
-            fullText += data.delta;
-            if (callbacks.onText) callbacks.onText(data.delta);
+        fetch('/api/sessions/' + encodeURIComponent(sid) + '/chat/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: payload.message,
+            system_message: payload.system_message,
+            harness: route,
+            model: payload.model,
+            // Older gateways ignore this field; newer adapters can use it to
+            // record the route without inventing a second session contract.
+            routing: { preferred: routeIds[0], chain: routeIds, attempt: index + 1 },
+          }),
+          credentials: 'include',
+          signal: activeCtl.signal,
+        }).then(function (res) {
+          clearTimeout(activeTimer);
+          if (!res.ok) {
+            return res.json().catch(function () { return {}; }).then(function (edata) {
+              var info = { status: res.status, error: edata && edata.error, message: edata && edata.message };
+              if (edata && (edata.error === 'rate_limit_exceeded' || edata.error === 'insufficient_credits')) {
+                if (edata.error === 'insufficient_credits' && window.HubBilling) {
+                  try { window.HubBilling.openPlan(); } catch (e) { /* non-fatal */ }
+                }
+                finishError(HubAPI.formatLimitError(edata), info);
+                return;
+              }
+              if (canFallback(index, sawOutput, info)) {
+                routeNotice('retrying', index + 1, info.message || info.error || ('HTTP ' + res.status));
+                startAttempt(index + 1);
+                return;
+              }
+              finishError((edata && edata.message) || (edata && edata.error) || 'bad-response', info);
+            });
           }
-          if (PASS_EVENTS[event] && callbacks.onEvent) {
-            try { callbacks.onEvent(event, data || {}); } catch (e) { /* never kill the stream */ }
+
+          routeNotice('active', index, 'stream connected');
+          var PASS_EVENTS = {
+            'tool.started': 1, 'tool.completed': 1, 'tool.failed': 1,
+            'tool.progress': 1, 'run.completed': 1,
+          };
+
+          return readSSE(res, function (event, data) {
+            data = data || {};
+            if (event === 'assistant.delta' && data.delta) {
+              sawOutput = true;
+              fullText += data.delta;
+              if (callbacks.onText) callbacks.onText(data.delta);
+            }
+            if (PASS_EVENTS[event]) {
+              sawOutput = true;
+              if (callbacks.onEvent) {
+                try { callbacks.onEvent(event, data); } catch (e) { /* never kill the stream */ }
+              }
+            }
+            if (event === 'done' && !terminal) {
+              terminal = true;
+              completed = true;
+              routeNotice('done', index, 'stream completed');
+              if (callbacks.onDone) callbacks.onDone({ ok: true, text: fullText, harness: route, attempt: index + 1 });
+            }
+            if (event === 'error' && !terminal) {
+              terminal = true;
+              var info = { kind: 'agent', status: data.status, error: data.error, message: data.message };
+              if (canFallback(index, sawOutput, info)) {
+                routeNotice('retrying', index + 1, data.message || data.error || 'adapter error');
+                startAttempt(index + 1);
+                return;
+              }
+              finishError(data.message || 'agent error', info);
+            }
+          }).then(function () {
+            if (!terminal && !stopped && !completed) {
+              var info = { kind: 'network', message: 'stream closed before completion' };
+              if (canFallback(index, sawOutput, info)) {
+                routeNotice('retrying', index + 1, info.message);
+                startAttempt(index + 1);
+              } else {
+                finishError('stream closed before completion', info);
+              }
+            }
+          });
+        }).catch(function (e) {
+          clearTimeout(activeTimer);
+          if (stopped || completed) return;
+          var info = { kind: (e && e.name === 'AbortError') ? 'timeout' : 'network', message: e && e.message };
+          if (canFallback(index, sawOutput, info)) {
+            routeNotice('retrying', index + 1, info.kind);
+            startAttempt(index + 1);
+            return;
           }
-          if (event === 'done' && callbacks.onDone) {
-            callbacks.onDone({ ok: true, text: fullText });
-          }
-          if (event === 'error') {
-            if (callbacks.onError) callbacks.onError(
-              (data && data.message) || 'agent error',
-              { kind: 'agent', message: data && data.message }
-            );
-          }
+          finishError(info.kind === 'timeout' ? 'timeout' : 'offline', info);
         });
-      }).catch(function (e) {
-        clearTimeout(to);
-        if (callbacks.onError) callbacks.onError(
-          (e && e.name === 'AbortError') ? 'timeout' : 'offline',
-          { kind: (e && e.name === 'AbortError') ? 'timeout' : 'network', message: e && e.message }
-        );
-      });
+      }
+
+      startAttempt(0);
+      return {
+        abort: function () {
+          stopped = true;
+          if (activeTimer) clearTimeout(activeTimer);
+          if (activeCtl) activeCtl.abort();
+        },
+        route: routeIds.slice(),
+        attempt: function () { return currentAttempt + 1; },
+      };
     },
 
     /* ── Voice transcription ───────────────────────────────── */

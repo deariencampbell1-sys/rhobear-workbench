@@ -1,15 +1,16 @@
 /* RHOBEAR Rho — the LIVING plasma orb. Real-time <canvas> render: electric
    plasma filaments churning from a breathing core inside a glass sphere, holographic
    bloom, and genuine floating drift. Not a bubble, not a static image, not an emblem.
-   Per-surface colour (Hub = teal). States: idle · thinking · speaking. Self-mounting.
+   Per-surface colour (Hub + Builds = teal, Plans = RHOBEAR magenta). States: idle · thinking · speaking. Self-mounting.
    Canon: ~/.claude/canon/RHO-PLASMA-ORB.md */
 (function () {
   "use strict";
   if (window.__rhoOrbLive) return; window.__rhoOrbLive = true;
 
-  // ---- palette (Hub = teal; overridable via data-rho-surface) ----
+  // ---- palette (surface-owned; Builds keeps the original teal surface) ----
   var SURFACES = {
     hub:     { core: "#F0FEFF", a: "#5FE9DC", b: "#22B8CE", c: "#12617A", spark: "#B9F6FF", violet: "#6E7BF2" },
+    builds:  { core: "#F0FEFF", a: "#5FE9DC", b: "#22B8CE", c: "#12617A", spark: "#B9F6FF", violet: "#6E7BF2" },
     plans:   { core: "#FFF0FB", a: "#FF7FE6", b: "#C84BAA", c: "#7D2E77", spark: "#FFC6F2", violet: "#8A5CF0" },
     sales:   { core: "#FBFFE8", a: "#DDE85F", b: "#AEC22A", c: "#6F7A1A", spark: "#F2FFB9", violet: "#9AD84B" },
     reviews: { core: "#FFF6E8", a: "#F0C25F", b: "#C8912A", c: "#7A5A1A", spark: "#FFE6B9", violet: "#E0A84B" }
@@ -144,7 +145,7 @@
       "@keyframes rhoDrift{0%{transform:translate(0,0) scale(1)}20%{transform:translate(6px,-8px) scale(1.03)}45%{transform:translate(-5px,5px) scale(0.99)}70%{transform:translate(5px,7px) scale(1.03)}100%{transform:translate(0,0) scale(1)}}",
       /* KILL every flat/duplicate Rho emblem — the living canvas orb is the only Rho */
       ".fab-rho{display:none!important}",
-      "#rho-launch .rho-orbimg,.mini-orb,#railRho .rho-orb{display:none!important}",
+      "#rho-launch .rho-orbimg,#rho-head .rho-orbimg,#rho-call-orb .rho-orbimg,.mini-orb,#railRho .rho-orb{display:none!important}",
       "@media (prefers-reduced-motion: reduce){.rho-live--float{animation:none}}"
     ].join("");
     document.head.appendChild(s);
@@ -154,7 +155,9 @@
     if (!host || host.__rho) return; host.__rho = true;
     var cv = document.createElement("canvas");
     cv.className = "rho-live-canvas" + (floatIt ? " rho-live--float" : "");
-    cv.style.width = size + "px"; cv.style.height = size + "px";
+    cv.style.width = floatIt ? size + "px" : "100%";
+    cv.style.height = floatIt ? size + "px" : "100%";
+    cv.style.pointerEvents = "none";
     host.insertBefore(cv, host.firstChild);
     window.RhoOrbs.push(Orb(cv, surface));
   }
@@ -186,6 +189,18 @@
         return;
       }
       if (tries++ < 60) setTimeout(waitLaunch, 120);
+    })();
+
+    // The header orb and the full-screen voice orb are the same Rho, not
+    // separate static art. Poll because the companion injects them after this
+    // file runs, then let the shared state machine drive all three canvases.
+    var embeddedTries = 0;
+    (function waitEmbeddedOrbs() {
+      var headerOrb = document.querySelector("#rho-head .rho-head-orb");
+      var callOrb = document.getElementById("rho-call-orb");
+      if (headerOrb && !headerOrb.__rho) mountCanvas(headerOrb, 40, surface, false);
+      if (callOrb && !callOrb.__rho) mountCanvas(callOrb, 240, surface, false);
+      if ((!headerOrb || !callOrb) && embeddedTries++ < 60) setTimeout(waitEmbeddedOrbs, 120);
     })();
 
     window.RhoSetState = function (s) { (window.RhoOrbs || []).forEach(function (o) { o.setState(s); }); };

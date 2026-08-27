@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>RHOBEAR Hub</title>
+  <title>RHOBEAR Builds</title>
   <meta name="color-scheme" content="dark">
   <script src="/hub-theme-toggle.js?v=20260728-1447"></script>
   <link rel="stylesheet" href="https://use.typekit.net/sbv5bcv.css">
@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="styles.css?v=20260728-1447">
   <link rel="stylesheet" href="screens/home.css?v=20260728-1447">
   <link rel="stylesheet" href="screens/work.css?v=20260728-1447">
+  <link rel="stylesheet" href="screens/work-bench.css?v=20260728-1447">
   <link rel="stylesheet" href="screens/crew.css?v=20260728-1447">
   <link rel="stylesheet" href="screens/board.css?v=20260728-1447">
   <link rel="stylesheet" href="screens/runs.css?v=20260728-1447">
@@ -28,17 +29,17 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Hub">
+  <meta name="apple-mobile-web-app-title" content="Builds">
   <link rel="apple-touch-icon" href="/icon-192.png">
 </head>
-<body data-rho-surface="hub">
+<body data-rho-surface="builds">
   <div class="app-shell" id="appShell" data-nav="expanded">
 
     <!-- ═══════ GROUPED LEFT NAV-RAIL (220px, collapsible to 44px) ═══════ -->
     <nav class="hub-nav" id="hubNav">
       <div class="hub-nav__logo">
-        <img class="ink-bear" src="assets/hub-bear.png" alt="RHOBEAR Hub" />
-        <span class="hub-nav__wordmark">RHOBEAR <span class="prod">Hub</span></span>
+        <img class="ink-bear" src="assets/hub-bear.png" alt="RHOBEAR Builds" />
+        <span class="hub-nav__wordmark">RHOBEAR <span class="prod">Builds</span></span>
       </div>
 
       <!-- world switcher -->
@@ -2345,7 +2346,20 @@
   <script defer src="/sheet-artifact.js?v=20260728-1447"></script>
   <script defer src="/rho-orb-live.js?v=20260728-1447"></script>
   <script defer src="/hub-strive.js?v=20260728-1447"></script>
-  <script defer src="/companion-embed-orb4.js?v=20260728-1447"></script>
+  <!-- Rho config BEFORE the embed script: the embed stays unconfigured (and
+       answers "warming up") unless it finds window.RHOBEAR_COMPANION set first.
+       Same-origin /companion per the companion server contract; no keys. -->
+  <script>
+    window.RHOBEAR_COMPANION = {
+      endpoint: "/companion",
+      ready: true,
+      surface: "builds",
+      accent: "#2A8FA8",
+      title: "Rho",
+      greeting: "Hey — I'm Rho. Ask me anything about your RHOBEAR."
+    };
+  </script>
+  <script defer src="/companion-embed-orb4.js?v=nova-voice-20260827"></script>
 
   <!-- Cutover: retire the OLD service worker so returning users get the NEW shell,
        not a precached old one. The new hub is a plain static app (no SW needed). -->

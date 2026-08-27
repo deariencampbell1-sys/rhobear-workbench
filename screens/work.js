@@ -18,6 +18,190 @@
   var screen = document.querySelector('[data-screen="work"]');
   if (!screen) return;
 
+  /* The workstation owns the viewport. Keep the old task/stat nodes only as
+     compatibility hooks for the live stream code; the visible entry surface
+     is a stream rail, model route, viewer stage, and bottom composer. */
+  var initialHead = screen.querySelector('.page-head');
+  var initialPrompt = screen.querySelector('.s-work__prompt-card');
+  var initialOptions = screen.querySelector('.s-work__options');
+  if (initialHead && initialPrompt && initialOptions) {
+    screen.classList.add('builds-workstation');
+    initialHead.innerHTML = '<div class="builds-work__eyebrow">BUILDS</div>' +
+      '<h1>New build stream</h1><p class="sub">Every turn stays in the stream rail. Thinking, tools, and the final answer stay together.</p>';
+    initialPrompt.innerHTML = '<div class="builds-work__stage-empty"><div class="builds-work__stage-orb" data-builds-stage-orb></div>' +
+      '<h2>What are we building?</h2><p class="muted">Ask the Builds crew. Your viewer opens beside the active stream when a build produces something to inspect.</p>' +
+      '<div class="builds-work__examples"><button type="button" data-build-example="inspect the current build queue">Try “inspect the current build queue”</button>' +
+      '<button type="button" data-build-example="compare Peak and Summit">Try “compare Peak and Summit”</button></div></div>';
+    initialPrompt.className = 'builds-work__entry-stage';
+    initialOptions.innerHTML = '<div class="builds-work__composer-title">Ask the Builds crew what to build next…</div>' +
+      '<div class="builds-work__composer-row"><div class="builds-work__composer-controls">' +
+      '<span class="muted">Harness</span><button class="s-work__select builds-work__harness-select" type="button" aria-label="Choose harness"><span class="dot" aria-hidden="true"></span><span class="s-work__harness-label">Hermes</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" fill="none"/></svg></button>' +
+      '<span class="muted">Model</span><button class="s-work__select builds-work__model-select" type="button" aria-label="Choose model"><span class="s-work__model-label">✦ Summit</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" fill="none"/></svg></button>' +
+      '<span class="muted">Specialist</span><button class="chip s-work__assign" type="button" aria-label="Assign to specialist"><span class="s-work__assign-label">Coder</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" fill="none"/></svg></button>' +
+      '<button class="chip" type="button" data-open-sheet aria-label="Open spreadsheet">Spreadsheet</button><input type="file" data-sheet-file-input accept=".xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv" hidden /></div>' +
+      '<div class="builds-work__composer-actions"><span class="s-work__estimate mono muted">≈ 0 tokens</span><button class="builds-work__voice" type="button" data-builds-voice aria-label="Open voice mode" title="Voice mode"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button><button class="hub-btn-primary" type="button" data-action="run-task">Send <span aria-hidden="true">→</span></button></div></div>' +
+      '<div class="s-work__focus-row" role="group" aria-label="Autonomy"><button class="hub-filter-pill active" type="button">Auto</button><button class="hub-filter-pill" type="button">Suggest</button><button class="hub-filter-pill" type="button">Act</button></div>';
+    initialOptions.className = 'builds-work__entry-composer';
+    var task = document.createElement('textarea');
+    task.id = 's-work-task'; task.className = 's-work__textarea'; task.rows = 2;
+    task.setAttribute('aria-label', 'Describe what the Builds crew should build');
+    task.placeholder = 'Describe what the Builds crew should build…';
+    initialOptions.insertBefore(task, initialOptions.querySelector('.builds-work__composer-title'));
+
+    var layout = document.createElement('div'); layout.className = 'builds-work__layout';
+    var rail = document.createElement('aside'); rail.className = 'builds-work__rail';
+    rail.innerHTML = '<div class="builds-work__rail-head"><strong>Streams</strong><span class="chip chip--mono">0</span></div>' +
+      '<button class="hub-btn-ghost builds-work__new-stream" type="button" data-action="new-tab">+ New stream</button>' +
+      '<div class="builds-work__rail-empty">No saved streams yet. Start one and it will stay here.</div>' +
+      '<ul class="s-work__list builds-work__stream-list" aria-label="Saved build streams"></ul>' +
+      '<div class="builds-work__rail-foot">Session history is live</div>';
+    var station = document.createElement('main'); station.className = 'builds-work__station';
+    station.innerHTML = '<div class="builds-work__station-head"><div><strong>BUILD STREAM</strong><p class="muted">A persistent conversation for the build. Open the viewer when you need it.</p></div>' +
+      '<div class="builds-work__station-actions"><button class="chip" type="button" data-open-build-files>Files</button><button class="chip" type="button" data-toggle-build-tools aria-expanded="false">Tools</button><button class="chip" type="button" data-open-build-viewer aria-expanded="false">Open viewer</button>' +
+      '<div class="builds-work__utility-panel" data-build-tools hidden><button class="chip" type="button" data-nav-target="mcps">GitHub MCP</button><button class="chip" type="button" data-nav-target="vault">Vault</button></div></div></div>' +
+      '<div class="builds-work__routebar" data-builds-routebar>' +
+        '<div class="builds-work__route-copy"><span class="builds-work__eyebrow">ROUTING</span><strong data-builds-route-summary>Hermes</strong><span class="muted" data-builds-route-note>Fallback before first output · session stays in Builds</span></div>' +
+        '<div class="builds-work__route-chain" data-builds-route-chain aria-label="Harness fallback chain"></div>' +
+        '<button class="chip" type="button" data-route-open>Open preferred</button>' +
+      '</div>';
+    var stage = document.createElement('div'); stage.className = 'builds-work__stage';
+    var workarea = document.createElement('div'); workarea.className = 'builds-work__workarea';
+    var viewer = document.createElement('section'); viewer.className = 'builds-work__viewer'; viewer.setAttribute('aria-label', 'Web viewer and annotations'); viewer.setAttribute('data-rb-no-dictation', '');
+    viewer.innerHTML = '<div class="builds-work__viewer-head"><div><strong>WEB VIEWER</strong><span class="muted">Inspect without leaving Builds</span></div><button class="chip" type="button" data-viewer-annotate>Annotate</button></div>' +
+      '<div class="builds-work__viewer-toolbar"><input type="url" data-viewer-url placeholder="https://example.com" aria-label="Web viewer URL"/><button class="hub-btn-ghost" type="button" data-viewer-open>Open</button></div>' +
+      '<div class="builds-work__viewer-frame-wrap"><iframe data-viewer-frame title="Web viewer" src="about:blank" referrerpolicy="no-referrer"></iframe><canvas data-viewer-canvas aria-hidden="true"></canvas><div class="builds-work__viewer-empty" data-viewer-empty><strong>Viewer ready</strong><span>Paste a URL to inspect a page beside the build stream.</span></div></div>' +
+      '<div class="builds-work__viewer-foot"><span class="muted" data-viewer-status>Ready for a page</span><button class="chip" type="button" data-viewer-clear>Clear marks</button><button class="chip" type="button" data-viewer-context>Add page to brief</button></div>';
+    screen.innerHTML = '';
+    screen.appendChild(initialHead); screen.appendChild(layout);
+    layout.appendChild(rail); layout.appendChild(station);
+    station.appendChild(workarea); workarea.appendChild(stage); workarea.appendChild(viewer); station.appendChild(initialOptions);
+    viewer.hidden = true;
+    var entryFocus = initialOptions.querySelector('.s-work__focus-row');
+    var entryControls = initialOptions.querySelector('.builds-work__composer-controls');
+    if (entryFocus && entryControls) entryControls.appendChild(entryFocus);
+    stage.innerHTML = '<div class="builds-work__stage-placeholder"><div class="builds-work__stage-orb" data-builds-stage-orb></div><h2>What are we building?</h2><p class="muted">Ask the Builds crew. Thinking, tools, and the final answer stay together in the stream.</p><div class="builds-work__examples"><button type="button" data-build-example="inspect the current build queue">Try “inspect the current build queue”</button><button type="button" data-build-example="compare Peak and Summit">Try “compare Peak and Summit”</button></div></div>';
+    (function mountBuildsStageOrb() {
+      var hosts = screen.querySelectorAll('[data-builds-stage-orb]');
+      var tries = 0;
+      function mount() {
+        if (!window.RhoOrb) {
+          if (tries++ < 60) window.setTimeout(mount, 120);
+          return;
+        }
+        window.RhoOrbs = window.RhoOrbs || [];
+        hosts.forEach(function (host) {
+          if (host.__rhoStage) return;
+          host.__rhoStage = true;
+          var canvas = document.createElement('canvas');
+          canvas.setAttribute('aria-hidden', 'true');
+          canvas.style.width = '100%';
+          canvas.style.height = '100%';
+          host.appendChild(canvas);
+          window.RhoOrbs.push(window.RhoOrb(canvas, 'builds'));
+        });
+      }
+      mount();
+    }());
+    var examples = screen.querySelectorAll('[data-build-example]');
+    examples.forEach(function (button) { button.addEventListener('click', function () { task.value = button.getAttribute('data-build-example') || ''; task.dispatchEvent(new Event('input', { bubbles: true })); task.focus(); }); });
+    var viewerButton = screen.querySelector('[data-open-build-viewer]');
+    var toolsToggle = screen.querySelector('[data-toggle-build-tools]');
+    var toolsPanel = screen.querySelector('[data-build-tools]');
+    function navigateTo(name) { var nav = document.querySelector('[data-nav-item="' + name + '"]'); if (nav) nav.click(); }
+    if (toolsToggle && toolsPanel) toolsToggle.addEventListener('click', function () {
+      var open = toolsPanel.hidden;
+      toolsPanel.hidden = !open;
+      toolsToggle.setAttribute('aria-expanded', String(open));
+    });
+    var filesButton = screen.querySelector('[data-open-build-files]');
+    if (filesButton) filesButton.addEventListener('click', function () { navigateTo('files'); });
+    screen.querySelectorAll('[data-nav-target]').forEach(function (button) { button.addEventListener('click', function () { navigateTo(button.getAttribute('data-nav-target')); }); });
+    var viewerUrl = viewer.querySelector('[data-viewer-url]');
+    var viewerFrame = viewer.querySelector('[data-viewer-frame]');
+    var viewerCanvas = viewer.querySelector('[data-viewer-canvas]');
+    var viewerEmpty = viewer.querySelector('[data-viewer-empty]');
+    var viewerStatus = viewer.querySelector('[data-viewer-status]');
+    var annotateButton = viewer.querySelector('[data-viewer-annotate]');
+    var drawing = false;
+    function resizeViewerCanvas() {
+      var rect = viewerCanvas.getBoundingClientRect();
+      var ratio = window.devicePixelRatio || 1;
+      viewerCanvas.width = Math.max(1, Math.round(rect.width * ratio));
+      viewerCanvas.height = Math.max(1, Math.round(rect.height * ratio));
+      viewerCanvas.getContext('2d').setTransform(ratio, 0, 0, ratio, 0, 0);
+    }
+    function viewerPoint(event) { var r = viewerCanvas.getBoundingClientRect(); return { x: event.clientX - r.left, y: event.clientY - r.top }; }
+    function openViewer() {
+      var value = (viewerUrl.value || '').trim();
+      if (!value) { viewerUrl.focus(); return; }
+      if (!/^https?:\/\//i.test(value)) value = 'https://' + value;
+      viewerUrl.value = value;
+      viewerFrame.src = value;
+      viewerEmpty.hidden = true;
+      viewerStatus.textContent = 'Opening ' + value.replace(/^https?:\/\//i, '').slice(0, 42);
+    }
+    viewerFrame.addEventListener('load', function () { if (viewerFrame.src !== 'about:blank') viewerStatus.textContent = 'Page loaded · annotate the visible work'; });
+    viewer.querySelector('[data-viewer-open]').addEventListener('click', openViewer);
+    viewerUrl.addEventListener('keydown', function (event) { if (event.key === 'Enter') { event.preventDefault(); openViewer(); } });
+    function setEntryViewerOpen(on) {
+      viewer.hidden = !on;
+      workarea.classList.toggle('is-viewer-open', on);
+      viewerButton.setAttribute('aria-expanded', String(on));
+      viewerButton.textContent = on ? 'Hide viewer' : 'Open viewer';
+      if (on) { viewerUrl.focus(); viewer.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    }
+    function setActivePageViewer(open) {
+      var active = typeof activeTab === 'function' ? activeTab() : null;
+      if (!active || !active.els || !active.els.page) return false;
+      active.els.page.classList.toggle('is-viewer-open', open);
+      viewerButton.setAttribute('aria-expanded', String(open));
+      viewerButton.textContent = open ? 'Hide viewer' : 'Open viewer';
+      return true;
+    }
+    if (viewerButton) viewerButton.addEventListener('click', function () {
+      var active = typeof activeTab === 'function' ? activeTab() : null;
+      var pageOpen = !!(active && active.els && active.els.page && active.els.page.classList.contains('is-viewer-open'));
+      if (!setActivePageViewer(!pageOpen)) {
+        var nextOpen = viewer.hidden;
+        setEntryViewerOpen(nextOpen);
+        viewerButton.setAttribute('aria-expanded', String(nextOpen));
+        viewerButton.textContent = nextOpen ? 'Hide viewer' : 'Open viewer';
+      }
+    });
+    var entryVoice = screen.querySelector('[data-builds-voice]');
+    function clickNearestMic(field) {
+      var fr = field && field.getBoundingClientRect();
+      if (!fr) return;
+      var best = null; var score = Infinity;
+      document.querySelectorAll('button.rb-mic').forEach(function (mic) {
+        var mr = mic.getBoundingClientRect(); if (!mr.width || !mr.height) return;
+        var dx = (mr.left + mr.width / 2) - (fr.right - 18); var dy = (mr.top + mr.height / 2) - (fr.top + 18);
+        var next = dx * dx + dy * dy; if (next < score) { score = next; best = mic; }
+      });
+      if (best) best.click();
+      else if (field) field.focus();
+    }
+    if (entryVoice) entryVoice.addEventListener('click', function () { clickNearestMic(task); });
+    annotateButton.addEventListener('click', function () {
+      var on = viewer.classList.toggle('is-annotating');
+      annotateButton.classList.toggle('is-active', on);
+      viewerCanvas.hidden = !on;
+      if (on) { resizeViewerCanvas(); viewerStatus.textContent = 'Annotating · draw over the page'; }
+    });
+    viewer.querySelector('[data-viewer-clear]').addEventListener('click', function () { var ctx = viewerCanvas.getContext('2d'); ctx.clearRect(0, 0, viewerCanvas.width, viewerCanvas.height); });
+    viewerCanvas.addEventListener('pointerdown', function (event) { if (!viewer.classList.contains('is-annotating')) return; drawing = true; viewerCanvas.setPointerCapture(event.pointerId); var p = viewerPoint(event); var ctx = viewerCanvas.getContext('2d'); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+    viewerCanvas.addEventListener('pointermove', function (event) { if (!drawing) return; var p = viewerPoint(event); var ctx = viewerCanvas.getContext('2d'); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#00E5CC'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.stroke(); });
+    viewerCanvas.addEventListener('pointerup', function () { drawing = false; });
+    window.addEventListener('resize', resizeViewerCanvas);
+    viewer.querySelector('[data-viewer-context]').addEventListener('click', function () {
+      var value = (viewerUrl.value || '').trim();
+      if (!value) { viewerUrl.focus(); return; }
+      task.value = (task.value ? task.value + '\n\n' : '') + 'Inspect the page open in the Builds viewer: ' + value;
+      task.dispatchEvent(new Event('input', { bubbles: true })); task.focus();
+      viewerStatus.textContent = 'Page context added to the build brief';
+    });
+  }
+
   /* ── Helpers ────────────────────────────────────────────────────────── */
   function esc(s) {
     if (!s) return '';
@@ -86,32 +270,81 @@
   /* ── Entry model selector — REAL picker (harness → model), Hermes-driven.
      Sets the DEFAULT model used when a new conversation tab is opened.
      Each tab can still override its own model from its composer chip. */
-  var selectBtn = screen.querySelector('.s-work__select');
-  var selectLabel = screen.querySelector('.s-work__select-label');
+  var harnessBtn = screen.querySelector('.builds-work__harness-select');
+  var modelBtn = screen.querySelector('.builds-work__model-select');
+  var harnessLabel = screen.querySelector('.s-work__harness-label');
+  var modelLabel = screen.querySelector('.s-work__model-label');
   var topPills = document.querySelectorAll('.model-pill');
 
   function currentModelId() {
     return (window.HubCatalog && HubCatalog.readSelection())
-      ? HubCatalog.readSelection().model : 'core';
+      ? HubCatalog.readSelection().model : 'summit';
   }
 
-  function paintSelection() {
+  function paintSelection(sel) {
     if (!window.HubCatalog) return;
-    var lbl = HubCatalog.chipLabel(HubCatalog.readSelection());
-    if (selectLabel) selectLabel.textContent = lbl;
+    sel = sel || HubCatalog.readSelection();
+    var entry = HubCatalog.findModel(sel.harness, sel.model);
+    var lbl = HubCatalog.chipLabel(sel);
+    if (harnessLabel) harnessLabel.textContent = entry ? entry.harnessLabel : 'Hermes';
+    if (modelLabel) modelLabel.textContent = lbl;
     topPills.forEach(function (p) {
       var dot = p.querySelector('.dot');
       p.textContent = '';
       if (dot) p.appendChild(dot);
       p.appendChild(document.createTextNode(lbl));
     });
+    paintRoute(sel);
   }
 
-  if (selectBtn && window.HubCatalog) {
+  function paintRoute(sel) {
+    if (!window.HubCatalog) return;
+    sel = sel || HubCatalog.readSelection();
+    var chain = HubCatalog.fallbackChain ? HubCatalog.fallbackChain(sel.harness) : [sel.harness];
+    var chainEl = screen.querySelector('[data-builds-route-chain]');
+    var summaryEl = screen.querySelector('[data-builds-route-summary]');
+    var openBtn = screen.querySelector('[data-route-open]');
+    var labels = chain.map(function (id) {
+      var h = HubCatalog.harnessById ? HubCatalog.harnessById(id) : null;
+      return h ? h.label : id;
+    });
+    if (summaryEl) summaryEl.textContent = labels.join('  →  ');
+    if (chainEl) {
+      chainEl.innerHTML = chain.map(function (id, index) {
+        var h = HubCatalog.harnessById ? HubCatalog.harnessById(id) : null;
+        var label = h ? h.label : id;
+        return (index ? '<span class="builds-work__route-arrow" aria-hidden="true">→</span>' : '') +
+          '<button class="builds-work__route-pill' + (index === 0 ? ' is-preferred' : '') + '" type="button" data-route-harness="' + esc(id) + '" title="Use ' + esc(label) + ' as the preferred adapter">' + esc(label) + '</button>';
+      }).join('');
+      chainEl.querySelectorAll('[data-route-harness]').forEach(function (card) {
+        card.addEventListener('click', function () {
+          var next = { harness: card.getAttribute('data-route-harness'), model: sel.model };
+          HubCatalog.writeSelection(next);
+          paintSelection(next);
+          flashToast('Preferred adapter: ' + card.textContent);
+        });
+      });
+    }
+    if (openBtn) {
+      var url = HubCatalog.directUrl ? HubCatalog.directUrl(sel.harness) : '';
+      openBtn.textContent = HubCatalog.directLabel ? HubCatalog.directLabel(sel.harness) : 'Open preferred';
+      openBtn.disabled = !url;
+      openBtn.title = url ? 'Open the preferred harness in a new tab' : 'This adapter is running inside Builds';
+      openBtn.onclick = function () {
+        if (!url) { flashToast('This adapter is already running inside Builds'); return; }
+        window.open(url, '_blank', 'noopener');
+      };
+    }
+  }
+
+  if ((harnessBtn || modelBtn) && window.HubCatalog) {
     paintSelection();
-    selectBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      HubCatalog.openPicker(selectBtn, function () { paintSelection(); });
+    [harnessBtn, modelBtn].forEach(function (button) {
+      if (!button) return;
+      button.addEventListener('click', function (e) {
+        e.stopPropagation();
+        HubCatalog.openPicker(button, function (sel) { paintSelection(sel); });
+      });
     });
   }
 
@@ -178,9 +411,16 @@
       '</div>' +
       '<div class="s-work__pages" data-work-pages></div>');
 
-    var optionsRow = screen.querySelector('.s-work__options');
+    var optionsRow = screen.querySelector('.s-work__options') || screen.querySelector('.builds-work__entry-composer');
     if (optionsRow && optionsRow.parentNode) optionsRow.parentNode.insertBefore(bench, optionsRow.nextSibling);
     else screen.appendChild(bench);
+    var entryWorkarea = screen.querySelector('.builds-work__workarea');
+    if (entryWorkarea) entryWorkarea.hidden = true;
+    var entryStage = screen.querySelector('.builds-work__stage');
+    var entryPrompt = screen.querySelector('.builds-work__entry-stage');
+    if (entryStage) entryStage.hidden = true;
+    if (entryPrompt) entryPrompt.hidden = true;
+    if (optionsRow) optionsRow.hidden = true;
 
     _bench = { root: bench, tabs: bench.querySelector('[data-work-tabs]'), pages: bench.querySelector('[data-work-pages]') };
     _bench.root.querySelector('[data-action="new-tab"]').addEventListener('click', function () {
@@ -190,6 +430,18 @@
     });
     renderEmptyState();
     return _bench;
+  }
+
+  /* The resting rail's primary action must enter the same persistent bench
+     as the first Send action. Keep this explicit instead of relying on a
+     document-level delegate so the control remains stable after refresh. */
+  var initialNewStream = screen.querySelector('.builds-work__new-stream');
+  if (initialNewStream) {
+    initialNewStream.addEventListener('click', function () {
+      var t = newTab({ title: 'New conversation' });
+      activateTab(t.id);
+      if (t.els.composer) t.els.composer.focus();
+    });
   }
 
   function renderEmptyState() {
@@ -214,7 +466,9 @@
       id: id,
       title: opts.title || 'New conversation',
       sessionId: opts.sessionId || null,
-      model: currentModelId(),
+      harness: opts.harness || (window.HubCatalog && HubCatalog.readSelection ? HubCatalog.readSelection().harness : 'hermes'),
+      model: opts.model || currentModelId(),
+      fallbacks: opts.fallbacks || (window.HubCatalog && HubCatalog.fallbackChain ? HubCatalog.fallbackChain(opts.harness || (HubCatalog.readSelection ? HubCatalog.readSelection().harness : 'hermes')).slice(1) : []),
       crewIdx: 3,        // "Coder"
       autoIdx: 1,        // "Act"
       attached: null,    // { name, size } when a non-sheet file is queued
@@ -252,6 +506,7 @@
     tab.els.crewLabel = page.querySelector('[data-crew-label]');
     tab.els.autoLabel = page.querySelector('[data-auto-label]');
     tab.els.modelLabel = page.querySelector('[data-model-label]');
+    tab.els.routeLabel = page.querySelector('[data-tab-route]');
     tab.els.ctxBar = page.querySelector('[data-ctx-bar]');
     tab.els.ctxNum = page.querySelector('[data-ctx-num]');
     tab.els.attachChip = page.querySelector('[data-attach-chip]');
@@ -282,11 +537,12 @@
   function pageTemplate(tab) {
     var crewLbl = SPECIALISTS[tab.crewIdx];
     var autoLbl = AUTONOMY[tab.autoIdx].label;
-    var modelLbl = (window.HubCatalog ? HubCatalog.chipLabel({ harness: 'house', model: tab.model }) : tab.model);
+    var modelLbl = (window.HubCatalog ? HubCatalog.chipLabel({ harness: tab.harness, model: tab.model }) : tab.model);
+    var routeLbl = routeLabel(tab);
     return '' +
       '<div class="s-work__chat hub-card">' +
         '<div class="s-work__chat-head">' +
-          '<span class="s-work__chat-title" data-chat-title>' + esc(tab.title) + '</span>' +
+          '<div class="s-work__chat-heading"><span class="s-work__chat-title" data-chat-title>' + esc(tab.title) + '</span><span class="builds-work__tab-route" data-tab-route>' + esc(routeLbl) + '</span></div>' +
           '<button class="hub-btn-ghost s-work__chat-close" type="button" data-action="close-tab" aria-label="Close conversation">Close</button>' +
         '</div>' +
         '<div class="s-work__chat-msgs" data-chat-msgs></div>' +
@@ -308,8 +564,9 @@
               '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
             '</button>' +
           '</div>' +
-          '<div class="s-work__composer-inputrow">' +
+      '<div class="s-work__composer-inputrow">' +
             '<textarea class="s-work__composer-input" data-composer-input rows="1" placeholder="Reply, or add to the task…"></textarea>' +
+            '<button class="builds-work__voice" type="button" data-action="voice" aria-label="Open voice mode" title="Voice mode"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>' +
             '<button class="hub-btn-primary s-work__composer-send" type="button" data-composer-send aria-label="Send">' +
               '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M3 8H13M9 4L13 8L9 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' +
             '</button>' +
@@ -322,6 +579,14 @@
         '</div>' +
       '</div>' +
       canvasTemplate();
+  }
+
+  function routeLabel(tab) {
+    if (!window.HubCatalog) return tab && tab.harness ? tab.harness : 'Builds';
+    var h = HubCatalog.harnessById ? HubCatalog.harnessById(tab.harness) : null;
+    var name = h ? h.label : tab.harness;
+    var count = tab && tab.fallbacks ? tab.fallbacks.length : 0;
+    return name + (count ? ' · ' + count + ' fallback' + (count === 1 ? '' : 's') : ' · central');
   }
 
   function canvasTemplate() {
@@ -372,6 +637,8 @@
       sendMessage(tab, v);
     }
     tab.els.send.addEventListener('click', submit);
+    var voiceBtn = p.querySelector('[data-action="voice"]');
+    if (voiceBtn) voiceBtn.addEventListener('click', function () { clickNearestMicForPage(tab.els.composer); });
     tab.els.composer.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
     });
@@ -379,6 +646,17 @@
       var c = t.els.composer; c.style.height = 'auto'; c.style.height = Math.min(c.scrollHeight, 160) + 'px';
     }
     tab.els.composer.addEventListener('input', function () { autoGrow(tab); updateContextMeter(tab); });
+    function clickNearestMicForPage(field) {
+      var fr = field && field.getBoundingClientRect();
+      if (!fr) return field && field.focus();
+      var best = null; var score = Infinity;
+      document.querySelectorAll('button.rb-mic').forEach(function (mic) {
+        var mr = mic.getBoundingClientRect(); if (!mr.width || !mr.height) return;
+        var dx = (mr.left + mr.width / 2) - (fr.right - 18); var dy = (mr.top + mr.height / 2) - (fr.top + 18);
+        var next = dx * dx + dy * dy; if (next < score) { score = next; best = mic; }
+      });
+      if (best) best.click(); else field.focus();
+    }
 
     // close (chat head)
     var closeHead = p.querySelector('[data-action="close-tab"]');
@@ -427,8 +705,12 @@
       if (!window.HubCatalog) return;
       e.stopPropagation();
       HubCatalog.openPicker(modelBtn, function (sel) {
+        tab.harness = sel.harness;
         tab.model = sel.model;
+        tab.fallbacks = HubCatalog.fallbackChain ? HubCatalog.fallbackChain(sel.harness).slice(1) : [];
         if (tab.els.modelLabel) tab.els.modelLabel.textContent = HubCatalog.chipLabel(sel);
+        if (tab.els.routeLabel) tab.els.routeLabel.textContent = routeLabel(tab);
+        paintRoute(sel);
       });
     });
 
@@ -481,6 +763,7 @@
       if (on) loadPreview(t);
     });
     var active = activeTab();
+    if (active) paintRoute({ harness: active.harness, model: active.model });
     if (active && active.els.msgs) active.els.msgs.scrollTop = active.els.msgs.scrollHeight;
   }
   function closeTab(id) {
@@ -498,6 +781,15 @@
     if (_active === id) {
       _active = _tabs.length ? _tabs[Math.max(0, idx - 1)].id : null;
       if (_active) activateTab(_active);
+    }
+    if (!_tabs.length) {
+      var entryWorkarea = screen.querySelector('.builds-work__workarea');
+      var entryOptions = screen.querySelector('.builds-work__entry-composer');
+      if (entryWorkarea) entryWorkarea.hidden = false;
+      if (entryOptions) entryOptions.hidden = false;
+      if (viewer && typeof viewer.hidden !== 'undefined') viewer.hidden = true;
+      if (workarea) workarea.classList.remove('is-viewer-open');
+      if (viewerButton) { viewerButton.setAttribute('aria-expanded', 'false'); viewerButton.textContent = 'Open viewer'; }
     }
     renderEmptyState();
   }
@@ -609,6 +901,22 @@
     tab.els.msgs.insertBefore(t, before);
     tab.els.msgs.scrollTop = tab.els.msgs.scrollHeight;
   }
+  function addRouteRow(tab, data) {
+    if (!data || !tab.els.msgs) return;
+    var h = window.HubCatalog && HubCatalog.harnessById ? HubCatalog.harnessById(data.harness) : null;
+    var label = h ? h.label : data.harness;
+    var text = data.state === 'fallback'
+      ? '↪ Fallback to ' + label
+      : data.state === 'retrying'
+        ? '↻ ' + label + ' unavailable · trying next'
+        : data.state === 'active'
+          ? '● ' + label + ' connected'
+          : '→ Starting ' + label;
+    var row = el('div', 's-work__route-row ' + (data.state === 'retrying' ? 'is-fallback' : ''), esc(text));
+    if (data.reason) row.title = data.reason;
+    tab.els.msgs.appendChild(row);
+    tab.els.msgs.scrollTop = tab.els.msgs.scrollHeight;
+  }
   function setSendDisabled(tab, on) {
     if (tab.els.send) { if (on) tab.els.send.setAttribute('disabled', ''); else tab.els.send.removeAttribute('disabled'); }
   }
@@ -619,6 +927,7 @@
     var lines = [];
     lines.push('Crew specialist: ' + SPECIALISTS[tab.crewIdx] + '.');
     lines.push(AUTONOMY[tab.autoIdx].hint);
+    lines.push('Builds route: preferred ' + routeLabel(tab) + '. Fallback is allowed only before the first tool or assistant output.');
     if (tab.attached) lines.push('A file is attached as context: ' + tab.attached.name + ' (' + tab.attached.size + ' bytes).');
     return lines.join(' ');
   }
@@ -667,8 +976,18 @@
         sessionId: sid,
         message: message,
         model: tab.model,
+        harness: tab.harness,
+        fallbacks: tab.fallbacks,
+        timeoutMs: 4 * 60 * 60 * 1000,
         system_message: buildSystemMessage(tab),
       }, {
+        onRoute: function (route) {
+          addRouteRow(tab, route);
+          if (route && route.harness) {
+            var h = window.HubCatalog && HubCatalog.harnessById ? HubCatalog.harnessById(route.harness) : null;
+            if (tab.els.routeLabel) tab.els.routeLabel.textContent = (h ? h.label : route.harness) + ' · attempt ' + route.attempt;
+          }
+        },
         onText: function (delta) {
           if (firstDelta) { agent.classList.remove('is-typing'); agent.textContent = ''; firstDelta = false; }
           agent.textContent += delta;
@@ -792,4 +1111,17 @@
 
   /* ── Initial load ──────────────────────────────────────────────────── */
   loadSessions();
+  /* Notes → Builds handoff: start the real persistent session after the Work
+     surface is mounted. The brief is consumed once by api.js and then removed
+     from the address bar, so reloads never duplicate a build. */
+  if (typeof HubAPI !== 'undefined' && HubAPI.pendingBrief) {
+    var handoff = HubAPI.pendingBrief;
+    setTimeout(function () {
+      var workNav = document.querySelector('[data-nav-item="work"]');
+      if (workNav) workNav.click();
+      var prompt = 'Source brief: ' + handoff.title + '\n\n' + handoff.body;
+      var t = newTab({ title: handoff.title, harness: handoff.harness, model: handoff.model, seedMessage: prompt });
+      activateTab(t.id);
+    }, 0);
+  }
 })();

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# deploy.sh — deploy RHOBEAR Workbench web (static app) FROM this repo INTO the live docroot.
+# deploy.sh — deploy RHOBEAR Builds web (static app) FROM this repo INTO the live docroot.
 # Run ON rhobear-vps:  cd /home/slang/rhobear-workbench-web && git pull && ./deploy.sh
 #
-# THIS REPO IS THE SINGLE SOURCE OF TRUTH for workbench.rhobear.ai's static docroot.
-# NEVER hand-edit the docroot (/var/www/rhobear-workbench-web) — hand edits silently drift and
+# THIS REPO IS THE SINGLE SOURCE OF TRUTH for builds.rhobear.ai's static docroot.
+# NEVER hand-edit the docroot (/var/www/rhobear-builds-web) — hand edits silently drift and
 # get reverted, which is exactly the failure this arrangement exists to prevent. Edit here, commit,
 # deploy.
 #
@@ -23,7 +23,7 @@
 # CSS; "build" == this sync.
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOCROOT="${WORKBENCH_DOCROOT:-/var/www/rhobear-workbench-web}"
+DOCROOT="${BUILDS_DOCROOT:-/var/www/rhobear-builds-web}"
 [ -d "$DOCROOT" ] || { echo "[deploy] ERROR: docroot $DOCROOT not found" >&2; exit 1; }
 cd "$REPO"
 
@@ -59,6 +59,21 @@ else
   echo "[deploy] WARNING: node not found, skipping the syntax gate" >&2
 fi
 
+# 0b. COMPANION CONFIG GATE. The Rho embed stays unconfigured (permanent
+#     "warming up" placeholder) unless every shipping callsite sets
+#     window.RHOBEAR_COMPANION BEFORE the embed script. The syntax gate above
+#     proves the scripts parse; this proves the config contract the live chat
+#     depends on (both pages, parsed endpoint, real send path) — a page that
+#     breaks the chat must not reach the docroot.
+if command -v node >/dev/null 2>&1; then
+  if ! node "$REPO/tests/companion-config.guard.js"; then
+    echo "[deploy] ABORTED — refusing to publish pages whose Rho companion is not configured." >&2
+    exit 1
+  fi
+else
+  echo "[deploy] WARNING: node not found, skipping the companion config gate" >&2
+fi
+
 # 1. Directories this repo fully owns. --delete is safe here: nothing else lives in them.
 for d in assets lessons mcp models preview screens vendor; do
   [ -d "$REPO/$d" ] || continue
@@ -89,4 +104,4 @@ node -e '
 ' "$REPO/index.html" "$STAMP" "$DOCROOT/.index.html.new"
 mv "$DOCROOT/.index.html.new" "$DOCROOT/index.html"
 
-echo "[deploy] done — workbench.rhobear.ai now serving ?v=$STAMP"
+echo "[deploy] done — builds.rhobear.ai now serving ?v=$STAMP"

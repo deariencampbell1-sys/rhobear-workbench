@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="screens/home.css">
   <link rel="stylesheet" href="screens/work.css">
+  <link rel="stylesheet" href="screens/work-bench.css">
   <link rel="stylesheet" href="screens/crew.css">
   <link rel="stylesheet" href="screens/board.css">
   <link rel="stylesheet" href="screens/runs.css">
@@ -22,7 +23,7 @@
   <link rel="stylesheet" href="screens/learn.css">
   <link rel="stylesheet" href="screens/settings.css">
 </head>
-<body>
+<body data-rho-surface="builds">
   <div class="app-shell" id="appShell" data-nav="expanded">
 
     <!-- ═══════ GROUPED LEFT NAV-RAIL (220px, collapsible to 44px) ═══════ -->
@@ -2484,7 +2485,21 @@ Open with the **customer-cost angle**, then pivot to specialist handoff.
   <script>window.RB_DICTATION_ACCENT="#2A8FA8";window.RB_SHEET_ACCENT="#2A8FA8";</script>
   <script defer src="/dictation.js?v=14"></script>
   <script defer src="/sheet-artifact.js?v=2"></script>
-  <script defer src="/companion-embed-orb4.js?v=pack1"></script>
+  <script defer src="/rho-orb-live.js?v=pack1"></script>
+  <!-- Rho config BEFORE the embed script: the embed stays unconfigured (and
+       answers "warming up") unless it finds window.RHOBEAR_COMPANION set first.
+       Same-origin /companion per the companion server contract; no keys. -->
+  <script>
+    window.RHOBEAR_COMPANION = {
+      endpoint: "/companion",
+      ready: true,
+      surface: "builds",
+      accent: "#2A8FA8",
+      title: "Rho",
+      greeting: "Hey — I'm Rho. Ask me anything about your RHOBEAR."
+    };
+  </script>
+  <script defer src="/companion-embed-orb4.js?v=nova-voice-20260827"></script>
 
   <!-- Cutover: retire the OLD service worker so returning users get the NEW shell,
        not a precached old one. The new hub is a plain static app (no SW needed). -->

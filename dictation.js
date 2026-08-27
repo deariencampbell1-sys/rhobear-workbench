@@ -69,6 +69,9 @@
   function eligible(el) {
     if (!el || el.__rbMic) return false;
     if (el.closest && el.closest('[data-rb-no-dictation]')) return false;
+    // Rho owns its composer mic. A second universal mic over that same field
+    // creates two incompatible turn models on one control.
+    if (el.id === 'rho-input' || (el.closest && el.closest('#rho-embed'))) return false;
     var tag = (el.tagName || '').toLowerCase();
     if (tag === 'textarea') return el.offsetParent !== null;
     if (tag === 'input') {
@@ -200,32 +203,16 @@
       finish: function () { stopRef.active = false; btn.removeAttribute('data-on'); btn.removeAttribute('data-busy'); }
     };
 
-    // Hands-free CONTINUOUS dictation: tap on → it listens, auto-detects the
-    // silence, drops each utterance into the field, and keeps listening for the
-    // next one → tap again to turn off. (No click-to-start/click-to-stop toggle.)
+    // Plain dictation is one deliberate recording: tap to begin, tap again to
+    // finish, then review the transcription in the field. Conversational
+    // turn-taking belongs to the Rho companion's explicit voice-follow-up mode.
     btn.addEventListener('click', function (ev) {
       ev.preventDefault(); ev.stopPropagation();
       if (stopRef.active) { stopRef.stop(); return; }
       stopRef.active = true;
       btn.setAttribute('data-on', '1');
       el.focus();
-      ensureWhisper().then(function () {
-        if (!stopRef.active) return;  // user tapped off during model load
-        window.WhisperSTT.talkContinuous({
-          onFinal: function (text) {
-            if (text && text.trim()) {
-              var pre = (el.value || el.textContent || '').match(/\S$/) ? ' ' : '';
-              insert(el, pre + text.trim());
-            }
-          },
-          onStatus: function (s) {
-            s = String(s || '');
-            if (s === 'stopped') { stopRef.finish(); }
-            else if (s.indexOf('mic:') === 0) { toast('Microphone permission blocked'); stopRef.stop(); }
-            else if (s.indexOf('error:') === 0) { toast('Transcription failed'); }
-          }
-        });
-      }).catch(function () { toast('Voice unavailable'); stopRef.stop(); });
+      stopFn = whisperDictate(el, btn, stopRef);
     });
   }
 
@@ -236,16 +223,11 @@
   }
   function boot() {
     scan(document);
-    var mo = new MutationObserver(function (muts) {
-      for (var i = 0; i < muts.length; i++) {
-        var m = muts[i];
-        for (var j = 0; j < m.addedNodes.length; j++) {
-          var n = m.addedNodes[j];
-          if (n.nodeType !== 1) continue;
-          if (n.matches && n.matches('textarea, input, [contenteditable]')) attach(n);
-          if (n.querySelectorAll) scan(n);
-        }
-      }
+    var queued = false;
+    var mo = new MutationObserver(function () {
+      if (queued) return;
+      queued = true;
+      setTimeout(function () { queued = false; scan(document); }, 0);
     });
     mo.observe(document.documentElement, { childList: true, subtree: true });
   }
