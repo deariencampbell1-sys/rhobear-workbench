@@ -1663,7 +1663,9 @@
     var call = {
       on: false, state: 'idle', rec: null,
       queue: [], playing: false, audio: null,
-      pendingSentence: '', spokenFull: ''
+      pendingSentence: '', spokenFull: '',
+      nova: null, novaStream: null, novaCtx: null, novaSource: null,
+      novaProcessor: null, novaMute: null, novaNodes: [], novaAt: 0
     };
 
     function callSetState(s) {
@@ -1719,6 +1721,122 @@
       call.queue = [];
       if (call.audio) { try { call.audio.pause(); } catch (e) {} call.audio = null; }
       call.playing = false;
+    }
+
+    function novaB64(bytes) {
+      var out = '', step = 0x8000;
+      for (var i = 0; i < bytes.length; i += step) out += String.fromCharCode.apply(null, bytes.subarray(i, i + step));
+      return btoa(out);
+    }
+    function novaBytes(b64) {
+      var raw = atob(b64 || ''), bytes = new Uint8Array(raw.length);
+      for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+      return bytes;
+    }
+    function novaStopAudio() {
+      call.novaNodes.forEach(function (node) { try { node.stop(); } catch (e) {} });
+      call.novaNodes = [];
+      if (call.novaCtx) call.novaAt = call.novaCtx.currentTime;
+    }
+    function novaPlay(pcm, rate) {
+      if (!call.novaCtx || !pcm) return;
+      var bytes;
+      try { bytes = novaBytes(pcm); } catch (e) { return; }
+      if (bytes.byteLength < 2) return;
+      var samples = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
+      var buffer = call.novaCtx.createBuffer(1, samples.length, Number(rate) || 24000);
+      var data = buffer.getChannelData(0);
+      for (var i = 0; i < samples.length; i++) data[i] = samples[i] / 32768;
+      var source = call.novaCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(call.novaCtx.destination);
+      call.novaAt = Math.max(call.novaCtx.currentTime + 0.035, call.novaAt || 0);
+      source.start(call.novaAt);
+      call.novaAt += buffer.duration;
+      call.novaNodes.push(source);
+      source.onended = function () {
+        call.novaNodes = call.novaNodes.filter(function (item) { return item !== source; });
+        if (call.on && !call.novaNodes.length && call.state === 'speaking') callSetState('listening');
+      };
+    }
+    function novaStop() {
+      if (call.nova) { try { call.nova.close(); } catch (e) {} }
+      call.nova = null;
+      novaStopAudio();
+      if (call.novaProcessor) { try { call.novaProcessor.disconnect(); } catch (e) {} }
+      if (call.novaSource) { try { call.novaSource.disconnect(); } catch (e) {} }
+      if (call.novaMute) { try { call.novaMute.disconnect(); } catch (e) {} }
+      if (call.novaStream) call.novaStream.getTracks().forEach(function (track) { track.stop(); });
+      call.novaProcessor = null; call.novaSource = null; call.novaMute = null; call.novaStream = null;
+      if (call.novaCtx) { try { call.novaCtx.close(); } catch (e) {} }
+      call.novaCtx = null; call.novaAt = 0;
+    }
+    function novaStartMic() {
+      return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }).then(function (stream) {
+        if (!call.on || !call.nova) { stream.getTracks().forEach(function (track) { track.stop(); }); return; }
+        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) throw new Error('AudioContext unavailable');
+        var ctx = call.novaCtx = new AudioCtx();
+        var source = call.novaSource = ctx.createMediaStreamSource(stream);
+        var processor = call.novaProcessor = ctx.createScriptProcessor(4096, 1, 1);
+        var mute = call.novaMute = ctx.createGain();
+        mute.gain.value = 0;
+        call.novaStream = stream;
+        processor.onaudioprocess = function (event) {
+          if (!call.on || !call.nova || call.nova.readyState !== WebSocket.OPEN) return;
+          var input = event.inputBuffer.getChannelData(0), fromRate = ctx.sampleRate, targetRate = 16000;
+          var count = Math.max(1, Math.round(input.length * targetRate / fromRate));
+          var pcm = new Int16Array(count);
+          for (var i = 0; i < count; i++) {
+            var sample = input[Math.min(input.length - 1, Math.floor(i * fromRate / targetRate))] || 0;
+            pcm[i] = Math.max(-1, Math.min(1, sample)) * 32767;
+          }
+          var level = 0;
+          for (var j = 0; j < input.length; j++) level += input[j] * input[j];
+          if (call.state === 'listening') waveSetAmp(Math.sqrt(level / input.length) * 3.4);
+          call.nova.send(JSON.stringify({ event: 'audio', pcm: novaB64(new Uint8Array(pcm.buffer)), rate: targetRate }));
+        };
+        source.connect(processor); processor.connect(mute); mute.connect(ctx.destination);
+        return ctx.resume();
+      });
+    }
+    function novaConnect() {
+      return fetch('/browser-voice/token', { credentials: 'include' }).then(function (res) {
+        if (!res.ok) throw new Error('owner sign-in required');
+        return res.json();
+      }).then(function (session) {
+        if (!call.on) return;
+        var scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        var socket = call.nova = new WebSocket(scheme + '//' + location.host + '/browser-voice/nova');
+        socket.onopen = function () { socket.send(JSON.stringify({ event: 'auth', token: session.token, voice: 'Rho' })); };
+        socket.onmessage = function (packet) {
+          var event;
+          try { event = JSON.parse(packet.data); } catch (e) { return; }
+          if (!call.on) return;
+          if (event.event === 'ready') {
+            callLine.textContent = 'Nova is live. Say “Hermes” first when you want the deep-work lane.';
+            callSetState('listening');
+            novaStartMic().catch(function () { callLine.textContent = 'Microphone permission is required for the Nova call.'; callSetState('idle'); });
+          } else if (event.event === 'heard') {
+            callLine.innerHTML = '<span class="rho-heard"></span>';
+            callLine.firstChild.textContent = event.text || '';
+            callSetState('thinking');
+          } else if (event.event === 'text' && event.text) {
+            callLine.textContent = (callLine.textContent || '') + event.text;
+          } else if (event.event === 'audio_pcm') {
+            callSetState('speaking'); novaPlay(event.pcm, event.rate);
+          } else if (event.event === 'barge') {
+            novaStopAudio(); callSetState('listening');
+          } else if (event.event === 'done' && !call.novaNodes.length) {
+            callSetState('listening');
+          } else if (event.event === 'error') {
+            callLine.textContent = event.message || 'Nova voice hit a snag.';
+            callSetState('idle');
+          }
+        };
+        socket.onerror = function () { if (call.on) { callLine.textContent = 'Nova voice could not connect.'; callSetState('idle'); } };
+        socket.onclose = function () { if (call.on && call.state !== 'idle') { callLine.textContent = 'Nova voice channel closed. Tap the orb to reconnect.'; callSetState('idle'); } };
+      });
     }
 
     function callListen() {
@@ -1809,11 +1927,14 @@
         var unlock = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=');
         unlock.play().catch(function () {});
       } catch (e) {}
-      if (navigator.mediaDevices && window.MediaRecorder) { callSetState('listening'); callListen(); }
-      else { callSetState('idle'); callLine.textContent = 'This browser has no mic input \u2014 type to me in the chat instead.'; }
+      if (navigator.mediaDevices && (window.AudioContext || window.webkitAudioContext)) {
+        callLine.textContent = 'Connecting Nova…';
+        novaConnect().catch(function () { callLine.textContent = 'Sign in to RHOBEAR, then open the Nova call again.'; callSetState('idle'); });
+      } else { callSetState('idle'); callLine.textContent = 'This browser has no mic input \u2014 type to me in the chat instead.'; }
     }
     function callClose() {
       call.on = false;
+      novaStop();
       ttsStop();
       interrupt();
       try { if (window.WhisperSTT) WhisperSTT.stop(); } catch (e) {}
@@ -1825,7 +1946,13 @@
     callBtn.addEventListener('click', callOpen);
     callExit.addEventListener('click', callClose);
     callOrb.addEventListener('click', function () {
-      // tap = cut in: stop the voice, stop the brain, hand the floor back
+      // tap = cut in: Nova receives the live mic continuously; just clear queued speech
+      if (call.nova) {
+        novaStopAudio();
+        if (call.on) callSetState('listening');
+        return;
+      }
+      // legacy path fallback
       ttsStop();
       interrupt();
       if (call.on) { callSetState('listening'); callListen(); }
