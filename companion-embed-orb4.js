@@ -9,7 +9,7 @@
        composer \u2014 stays in normal chat), send button.
      - "Talk to Rho" call button → THE BIG ONE: fullscreen voice surface.
        Continuous listening, streamed replies spoken aloud sentence-by-sentence
-       (POST /api/tts), tap the orb to interrupt (/api/interrupt).
+       through Nova Sonic/Omni (POST /api/tts), tap the orb to interrupt (/api/interrupt).
      - Live crew visibility: tool / agent / task SSE events render as working
        chips in the thread, marked done as results land.
      - Personalize: accent color + voice picker (persisted per browser).
@@ -81,8 +81,9 @@
   var SURFACE_ACCENT_MAP = { hub: '#2A8FA8', builds: '#2A8FA8', plans: '#C84BAA', designs: '#C84B4B', capturd: '#4B7AC8', reviews: '#D4A843', sales: '#8FA82A', lab: '#6B2FA8' };
   var SURFACE_ACCENT = SURFACE_ACCENT_MAP[SURFACE] || '#2A8FA8';
   var ACCENT = lsGet('rho.accent') || SURFACE_ACCENT;
-  var VOICES = ['Charon', 'Puck', 'Kore', 'Fenrir', 'Aoede', 'Leda', 'Orus', 'Zephyr'];
-  var VOICE = lsGet('rho.voice') || 'Charon';
+  // Nova Sonic/Omni is the only RHOBEAR voice provider.
+  var VOICES = ['Nova Sonic'];
+  var VOICE = 'Nova Sonic';
   // Swatch palette = the host-surface accent + the pack per-surface accents.
   var SWATCHES = [SURFACE_ACCENT, '#2A8FA8', '#C84BAA', '#C84B4B', '#4B7AC8', '#D4A843', '#8FA82A', '#6B2FA8'];
 
@@ -1027,7 +1028,7 @@
       if (!READY || !ENDPOINT) return;
       fetch(ENDPOINT + '/api/tts', {
         method: 'POST', headers: authHeaders(), credentials: 'include',
-        body: JSON.stringify({ text: 'Hey, this is ' + TITLE + ' \u2014 sounding like ' + v + '.', voice: v, style: 'rho' })
+        body: JSON.stringify({ text: 'Hey, this is ' + TITLE + ' \u2014 speaking through Nova Sonic.', provider: 'nova-omni' })
       }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) {
         if (!b) return;
         var a = new Audio(URL.createObjectURL(b));
@@ -1214,7 +1215,7 @@
       setVoiceFollowStatus('Rho is speaking', false);
       fetch(ENDPOINT + '/api/tts', {
         method: 'POST', headers: authHeaders(), credentials: 'include',
-        body: JSON.stringify({ text: sentence, voice: VOICE, style: 'rho' })
+        body: JSON.stringify({ text: sentence, provider: 'nova-omni' })
       }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (blob) {
         if (!voiceFollow.on) return;
         if (!blob) { voiceFollow.playing = false; voiceFollowPump(); return; }
@@ -1702,7 +1703,7 @@
       var s = call.queue.shift();
       fetch(ENDPOINT + '/api/tts', {
         method: 'POST', headers: authHeaders(), credentials: 'include',
-        body: JSON.stringify({ text: s, voice: VOICE, style: 'rho' })
+        body: JSON.stringify({ text: s, provider: 'nova-omni' })
       }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) {
         if (!call.on) { call.playing = false; return; }
         if (!b) { call.playing = false; ttsPump(); return; }
@@ -1808,7 +1809,7 @@
         if (!call.on) return;
         var scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
         var socket = call.nova = new WebSocket(scheme + '//' + location.host + '/browser-voice/nova');
-        socket.onopen = function () { socket.send(JSON.stringify({ event: 'auth', token: session.token, voice: 'Rho' })); };
+        socket.onopen = function () { socket.send(JSON.stringify({ event: 'auth', token: session.token })); };
         socket.onmessage = function (packet) {
           var event;
           try { event = JSON.parse(packet.data); } catch (e) { return; }

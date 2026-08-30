@@ -423,8 +423,8 @@ async function main() {
         'the embed must expose a separate smart voice-follow-up turn');
       assert(embedSrc.includes("mode: voiceReply ? 'voice' : 'text'"),
         'voice follow-up turns must tell the brain they will be heard');
-      assert(embedSrc.includes("style: 'rho'"),
-        'TTS requests must carry the Rho delivery style separately from visible text');
+      assert(embedSrc.includes("provider: 'nova-omni'"),
+        'TTS requests must identify the Nova Sonic/Omni provider explicitly');
       assert(embedSrc.includes("voiceStop.addEventListener('click', exitVoiceFollow)"),
         'the top-corner Stop control must return the user to normal dictation');
     });
