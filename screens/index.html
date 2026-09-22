@@ -2484,6 +2484,18 @@ Open with the **customer-cost angle**, then pivot to specialist handoff.
   <script>window.RB_DICTATION_ACCENT="#2A8FA8";window.RB_SHEET_ACCENT="#2A8FA8";</script>
   <script defer src="/dictation.js?v=14"></script>
   <script defer src="/sheet-artifact.js?v=2"></script>
+  <!-- Rho config BEFORE the embed script: the embed stays unconfigured (and
+       answers "warming up") unless it finds window.RHOBEAR_COMPANION set first.
+       Same-origin /companion per the companion server contract; no keys. -->
+  <script>
+    window.RHOBEAR_COMPANION = {
+      endpoint: "/companion",
+      ready: true,
+      accent: "#2A8FA8",
+      title: "Rho",
+      greeting: "Hey — I'm Rho. Ask me anything about your RHOBEAR."
+    };
+  </script>
   <script defer src="/companion-embed-orb4.js?v=pack1"></script>
 
   <!-- Cutover: retire the OLD service worker so returning users get the NEW shell,
