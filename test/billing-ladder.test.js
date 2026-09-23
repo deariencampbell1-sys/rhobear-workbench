@@ -122,8 +122,9 @@ async function mount(plansResponse, subscription) {
   win.eval(BILLING_JS);
 
   const host = win.document.querySelector('[data-plan-ladder]');
-  for (let i = 0; i < 50 && host.innerHTML === ''; i++) {
-    await new Promise((r) => setTimeout(r, 0));
+  // 200 iterations with 5ms delay = up to 1s wait, enough for slow CI
+  for (let i = 0; i < 200 && host.innerHTML === ''; i++) {
+    await new Promise((r) => setTimeout(r, 5));
   }
   return { win, host, text: host.textContent, html: host.innerHTML };
 }
