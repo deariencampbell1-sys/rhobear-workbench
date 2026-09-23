@@ -199,18 +199,22 @@
       var idx = order.indexOf(p.tier);
       var verb = isCurrent ? 'Current plan' : (currentIdx >= 0 && idx < currentIdx ? 'Switch' : 'Upgrade');
       /* Entitlements are optional: the live catalog carries no per-plan
-         allowances, so these arrive as null. Print nothing rather than
-         '0 runs/mo' — this screen does not quote a figure checkout would not
-         honour. Reading .toLocaleString() off null also threw here, which
-         emptied the whole ladder. */
+         allowances, so these arrive as null — or as 0 if the catalog is
+         ever edited to state one. Both read as "the server does not state
+         this": 0 runs/mo is a figure checkout would not honour (the router
+         normalizes "the catalog does not say" to null in _meta_int, and a
+         stated-but-zero figure is declined here for the same reason), so
+         print nothing rather than a false figure. Reading
+         .toLocaleString() off null also threw here, which emptied the whole
+         ladder. */
       var facts = [];
-      if (typeof p.includedRuns === 'number') {
+      if (typeof p.includedRuns === 'number' && p.includedRuns > 0) {
         facts.push(p.includedRuns.toLocaleString() + ' runs/mo');
       }
-      if (typeof p.includedStorageGb === 'number') {
+      if (typeof p.includedStorageGb === 'number' && p.includedStorageGb > 0) {
         facts.push(p.includedStorageGb + ' GB storage');
       }
-      if (typeof p.bundledReviews === 'number') {
+      if (typeof p.bundledReviews === 'number' && p.bundledReviews > 0) {
         facts.push(p.bundledReviews + ' Reviews/mo');
       }
       return '<div class="hub-card s-settings__plan-tile' + (isCurrent ? ' is-current' : '') + '">' +

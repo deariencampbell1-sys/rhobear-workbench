@@ -1,0 +1,12 @@
+{
+  "name": "rhobear-workbench-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "RHOBEAR Workbench — static web app for workbench.rhobear.ai (no build step).",
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1"
+  }
+}
