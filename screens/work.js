@@ -439,7 +439,7 @@
   if (initialNewStream) {
     initialNewStream.addEventListener('click', function () {
       var t = newTab({ title: 'New conversation' });
-      activateTab(t.id);
+      // newTab already activates the tab internally; no duplicate activateTab call needed
       if (t.els.composer) t.els.composer.focus();
     });
   }

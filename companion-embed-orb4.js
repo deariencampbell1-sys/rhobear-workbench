@@ -1184,7 +1184,8 @@
     // leaking into the chat or getting read aloud as literal tags.
     var voiceFollow = {
       on: false, listening: false, queue: [], playing: false, audio: null,
-      pendingSentence: '', sourceBtn: null, turnActive: false
+      pendingSentence: '', sourceBtn: null, turnActive: false,
+      generation: 0  // incremented on each start; stale fetches are ignored
     };
     function setVoiceFollowStatus(text, paused) {
       if (!voiceFollow.on) return;
@@ -1211,27 +1212,28 @@
       if (!voiceFollow.on || voiceFollow.playing || !voiceFollow.queue.length) return;
       voiceFollow.playing = true;
       var sentence = voiceFollow.queue.shift();
+      var gen = ++voiceFollow.generation;
       setVoiceFollowStatus('Rho is speaking', false);
       fetch(ENDPOINT + '/api/tts', {
         method: 'POST', headers: authHeaders(), credentials: 'include',
         body: JSON.stringify({ text: sentence, voice: VOICE, style: 'rho' })
       }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (blob) {
-        if (!voiceFollow.on) return;
+        if (!voiceFollow.on || gen !== voiceFollow.generation) return;
         if (!blob) { voiceFollow.playing = false; voiceFollowPump(); return; }
         var audio = new Audio(URL.createObjectURL(blob));
         voiceFollow.audio = audio;
-        audio.onplay = function () { if (voiceFollow.audio === audio) setVoiceFollowStatus('Rho is speaking', false); };
-        audio.onpause = function () { if (voiceFollow.audio === audio && !audio.ended) setVoiceFollowStatus('Voice paused', true); };
+        audio.onplay = function () { if (voiceFollow.audio === audio && gen === voiceFollow.generation) setVoiceFollowStatus('Rho is speaking', false); };
+        audio.onpause = function () { if (voiceFollow.audio === audio && !audio.ended && gen === voiceFollow.generation) setVoiceFollowStatus('Voice paused', true); };
         audio.onended = audio.onerror = function () {
-          if (voiceFollow.audio !== audio) return;
+          if (voiceFollow.audio !== audio || gen !== voiceFollow.generation) return;
           voiceFollow.audio = null; voiceFollow.playing = false;
           if (voiceFollow.queue.length) voiceFollowPump();
           else setVoiceFollowStatus('Voice replies on', false);
         };
         audio.play().catch(function () {
-          if (voiceFollow.audio === audio) setVoiceFollowStatus('Ready to play', true);
+          if (voiceFollow.audio === audio && gen === voiceFollow.generation) setVoiceFollowStatus('Ready to play', true);
         });
-      }).catch(function () { voiceFollow.playing = false; voiceFollowPump(); });
+      }).catch(function () { if (gen === voiceFollow.generation) { voiceFollow.playing = false; voiceFollowPump(); } });
     }
     function voiceFollowEnqueue(text) {
       text = (text || '').trim();
