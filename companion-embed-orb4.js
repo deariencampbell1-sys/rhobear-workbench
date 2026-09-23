@@ -1184,7 +1184,8 @@
     // leaking into the chat or getting read aloud as literal tags.
     var voiceFollow = {
       on: false, listening: false, queue: [], playing: false, audio: null,
-      pendingSentence: '', sourceBtn: null, turnActive: false
+      pendingSentence: '', sourceBtn: null, turnActive: false,
+      genId: 0, abortCtrl: null
     };
     function setVoiceFollowStatus(text, paused) {
       if (!voiceFollow.on) return;
@@ -1202,6 +1203,7 @@
     function voiceFollowStopAudio() {
       voiceFollow.queue = [];
       voiceFollow.pendingSentence = '';
+      if (voiceFollow.abortCtrl) { try { voiceFollow.abortCtrl.abort(); } catch (e) {} voiceFollow.abortCtrl = null; }
       if (voiceFollow.audio) { try { voiceFollow.audio.pause(); } catch (e) {} voiceFollow.audio = null; }
       voiceFollow.playing = false;
       clearVoiceFollowButton();
@@ -1212,11 +1214,15 @@
       voiceFollow.playing = true;
       var sentence = voiceFollow.queue.shift();
       setVoiceFollowStatus('Rho is speaking', false);
+      var myGen = ++voiceFollow.genId;
+      var ctrl = new AbortController();
+      voiceFollow.abortCtrl = ctrl;
       fetch(ENDPOINT + '/api/tts', {
         method: 'POST', headers: authHeaders(), credentials: 'include',
-        body: JSON.stringify({ text: sentence, voice: VOICE, style: 'rho' })
+        body: JSON.stringify({ text: sentence, voice: VOICE, style: 'rho' }),
+        signal: ctrl.signal
       }).then(function (r) { return r.ok ? r.blob() : null; }).then(function (blob) {
-        if (!voiceFollow.on) return;
+        if (!voiceFollow.on || voiceFollow.genId !== myGen) return;
         if (!blob) { voiceFollow.playing = false; voiceFollowPump(); return; }
         var audio = new Audio(URL.createObjectURL(blob));
         voiceFollow.audio = audio;
@@ -1231,7 +1237,7 @@
         audio.play().catch(function () {
           if (voiceFollow.audio === audio) setVoiceFollowStatus('Ready to play', true);
         });
-      }).catch(function () { voiceFollow.playing = false; voiceFollowPump(); });
+      }).catch(function () { if (voiceFollow.genId === myGen) { voiceFollow.playing = false; voiceFollowPump(); } });
     }
     function voiceFollowEnqueue(text) {
       text = (text || '').trim();
