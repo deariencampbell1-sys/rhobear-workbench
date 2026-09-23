@@ -190,7 +190,48 @@
   }
   loadData();
 
-  /* ── 5. Run crew — create session with the prompt ───────────────────── */
+  /* ── 5. Route selectors (harness/model) — wire through HubCatalog ───── */
+  var homeHarnessBtn = screen.querySelector('[data-home-harness]');
+  var homeModelBtn = screen.querySelector('[data-home-model]');
+  function paintHomeRoute(sel) {
+    if (!sel || !window.HubCatalog) return;
+    var entry = HubCatalog.findModel ? HubCatalog.findModel(sel.harness, sel.model) : null;
+    var lbl = HubCatalog.chipLabel ? HubCatalog.chipLabel(sel) : sel.model;
+    if (homeHarnessBtn) {
+      var hLabel = entry ? entry.harnessLabel : (sel.harness || 'Hermes');
+      homeHarnessBtn.innerHTML = '✦ ' + esc(hLabel) + ' <span>⌄</span>';
+    }
+    if (homeModelBtn) homeModelBtn.innerHTML = '✦ ' + esc(lbl) + ' <span>⌄</span>';
+    var cards = screen.querySelectorAll('.builds-home__route-card');
+    cards.forEach(function (c) { c.classList.remove('is-selected'); });
+  }
+  if (window.HubCatalog) {
+    if (homeHarnessBtn) homeHarnessBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      HubCatalog.openPicker(homeHarnessBtn, function (sel) { paintHomeRoute(sel); });
+    });
+    if (homeModelBtn) homeModelBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      HubCatalog.openPicker(homeModelBtn, function (sel) { paintHomeRoute(sel); });
+    });
+  }
+
+  /* ── 5b. Route card click — select and persist ─────────────────────── */
+  var routeCards = screen.querySelectorAll('.builds-home__route-card');
+  routeCards.forEach(function (card) {
+    card.addEventListener('click', function () {
+      if (!window.HubCatalog) return;
+      var name = (card.querySelector('b') || {}).textContent || '';
+      var h = HubCatalog.harnessById ? HubCatalog.harnessById(name.toLowerCase()) : null;
+      if (!h) return;
+      var sel = { harness: h.id, model: (HubCatalog.readSelection ? HubCatalog.readSelection() : {}).model || 'summit' };
+      HubCatalog.writeSelection(sel);
+      paintHomeRoute(sel);
+      card.classList.add('is-selected');
+    });
+  });
+
+  /* ── 6. Run crew — create session with the prompt ───────────────────── */
   var runBtn = screen.querySelector('[data-action="run-crew"]');
   if (runBtn) {
     runBtn.addEventListener('click', function () {

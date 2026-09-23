@@ -439,7 +439,6 @@
   if (initialNewStream) {
     initialNewStream.addEventListener('click', function () {
       var t = newTab({ title: 'New conversation' });
-      // newTab already activates the tab internally; no duplicate activateTab call needed
       if (t.els.composer) t.els.composer.focus();
     });
   }
@@ -519,11 +518,11 @@
 
     wirePage(tab);
 
-    if (_active === null) _active = id;
-    else activateTab(id);
-
     _tabs.push(tab);
     renderEmptyState();
+
+    if (_active === null) _active = id;
+    else activateTab(id);
 
     if (opts.seedMessage) {
       // Defer so the page is painted + visible before we stream into it.
